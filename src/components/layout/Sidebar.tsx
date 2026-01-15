@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,12 +43,9 @@ const managementItems: NavItem[] = [
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
-// Collapsed sidebar width listener
-const getSidebarWidth = (collapsed: boolean) => collapsed ? "w-20" : "w-64";
-
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeItem, setActiveItem] = useState("/");
+  const location = useLocation();
 
   return (
     <aside
@@ -87,9 +85,8 @@ export function Sidebar() {
             <NavButton
               key={item.href}
               item={item}
-              active={activeItem === item.href}
+              active={location.pathname === item.href}
               collapsed={collapsed}
-              onClick={() => setActiveItem(item.href)}
             />
           ))}
         </div>
@@ -104,9 +101,8 @@ export function Sidebar() {
             <NavButton
               key={item.href}
               item={item}
-              active={activeItem === item.href}
+              active={location.pathname === item.href}
               collapsed={collapsed}
-              onClick={() => setActiveItem(item.href)}
             />
           ))}
         </div>
@@ -138,18 +134,16 @@ function NavButton({
   item,
   active,
   collapsed,
-  onClick,
 }: {
   item: NavItem;
   active: boolean;
   collapsed: boolean;
-  onClick: () => void;
 }) {
   const Icon = item.icon;
 
   return (
-    <button
-      onClick={onClick}
+    <Link
+      to={item.href}
       className={cn(
         "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
         active
@@ -173,6 +167,6 @@ function NavButton({
           )}
         </>
       )}
-    </button>
+    </Link>
   );
 }
