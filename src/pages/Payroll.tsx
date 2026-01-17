@@ -15,23 +15,24 @@ const payrollData = [
 const Payroll = () => {
   return (
     <DashboardLayout>
-      <div className="mb-6 animate-fade-in">
-        <div className="flex items-center justify-between">
+      <div className="mb-6 animate-fade-in pt-2 sm:pt-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-display font-bold">
+            <h1 className="text-2xl sm:text-3xl font-display font-bold">
               <span className="text-gradient-gold">Payroll</span> Management
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Process salaries, bonuses, and manage employee compensation
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">
-              <Calendar className="w-4 h-4 mr-2" />
-              January 2024
+            <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+              <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">January 2024</span>
+              <span className="sm:hidden">Jan 24</span>
             </Button>
-            <Button variant="gold">
-              <Download className="w-4 h-4 mr-2" />
+            <Button variant="gold" size="sm" className="text-xs sm:text-sm">
+              <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
               Export
             </Button>
           </div>
@@ -39,41 +40,41 @@ const Payroll = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <Card variant="stat">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <IndianRupee className="w-4 h-4 text-primary" />
-              <p className="text-sm text-muted-foreground">Total Payroll</p>
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <IndianRupee className="w-3 h-3 sm:w-4 sm:h-4 text-primary shrink-0" />
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">Total Payroll</p>
             </div>
-            <p className="text-2xl font-bold text-primary">₹28.5L</p>
+            <p className="text-xl sm:text-2xl font-bold text-primary">₹28.5L</p>
           </CardContent>
         </Card>
         <Card variant="stat">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Employees</p>
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Users className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground shrink-0" />
+              <p className="text-xs sm:text-sm text-muted-foreground">Employees</p>
             </div>
-            <p className="text-2xl font-bold">48</p>
+            <p className="text-xl sm:text-2xl font-bold">48</p>
           </CardContent>
         </Card>
         <Card variant="stat">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-500" />
-              <p className="text-sm text-muted-foreground">Processed</p>
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 shrink-0" />
+              <p className="text-xs sm:text-sm text-muted-foreground">Processed</p>
             </div>
-            <p className="text-2xl font-bold text-green-500">42</p>
+            <p className="text-xl sm:text-2xl font-bold text-green-500">42</p>
           </CardContent>
         </Card>
         <Card variant="stat">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-yellow-500" />
-              <p className="text-sm text-muted-foreground">Pending</p>
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 shrink-0" />
+              <p className="text-xs sm:text-sm text-muted-foreground">Pending</p>
             </div>
-            <p className="text-2xl font-bold text-yellow-500">6</p>
+            <p className="text-xl sm:text-2xl font-bold text-yellow-500">6</p>
           </CardContent>
         </Card>
       </div>
@@ -81,12 +82,12 @@ const Payroll = () => {
       {/* Payroll Table */}
       <Card variant="elevated">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-primary" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
               Payroll Details
             </CardTitle>
-            <Button variant="gold" size="sm">
+            <Button variant="gold" size="sm" className="w-full sm:w-auto text-xs sm:text-sm">
               Process All Pending
             </Button>
           </div>
@@ -96,13 +97,24 @@ const Payroll = () => {
             {payrollData.map((emp) => (
               <div 
                 key={emp.id} 
-                className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border/50"
+                className="flex flex-col gap-3 p-3 sm:p-4 rounded-lg bg-muted/30 border border-border/50"
               >
-                <div className="flex-1">
-                  <p className="font-semibold">{emp.name}</p>
-                  <p className="text-sm text-muted-foreground">{emp.role}</p>
+                {/* Employee Info */}
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm sm:text-base truncate">{emp.name}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{emp.role}</p>
+                  </div>
+                  <Badge 
+                    variant={emp.status === "Paid" ? "default" : "secondary"}
+                    className="text-xs whitespace-nowrap shrink-0"
+                  >
+                    {emp.status}
+                  </Badge>
                 </div>
-                <div className="grid grid-cols-4 gap-8 text-sm">
+                
+                {/* Salary Details Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
                   <div>
                     <p className="text-muted-foreground">Salary</p>
                     <p className="font-medium">{emp.salary}</p>
@@ -120,11 +132,6 @@ const Payroll = () => {
                     <p className="font-bold text-primary">{emp.net}</p>
                   </div>
                 </div>
-                <Badge 
-                  variant={emp.status === "Paid" ? "default" : "secondary"}
-                >
-                  {emp.status}
-                </Badge>
               </div>
             ))}
           </div>
