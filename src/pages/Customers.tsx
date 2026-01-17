@@ -26,17 +26,17 @@ const getTierColor = (tier: string) => {
 const Customers = () => {
   return (
     <DashboardLayout>
-      <div className="mb-6 animate-fade-in">
-        <div className="flex items-center justify-between">
+      <div className="mb-6 animate-fade-in pt-2 sm:pt-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-display font-bold">
+            <h1 className="text-2xl sm:text-3xl font-display font-bold">
               <span className="text-gradient-gold">Customer</span> CRM
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Manage customer relationships, loyalty tiers, and purchase history
             </p>
           </div>
-          <Button variant="gold">
+          <Button variant="gold" className="shrink-0 w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" />
             Add Customer
           </Button>
@@ -44,32 +44,32 @@ const Customers = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <Card variant="stat">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Total Customers</p>
-            <p className="text-2xl font-bold text-primary">1,284</p>
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Customers</p>
+            <p className="text-xl sm:text-2xl font-bold text-primary">1,284</p>
           </CardContent>
         </Card>
         <Card variant="stat">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Crown className="w-4 h-4 text-primary" />
-              <p className="text-sm text-muted-foreground">Platinum Members</p>
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Crown className="w-3 h-3 sm:w-4 sm:h-4 text-primary shrink-0" />
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">Platinum</p>
             </div>
-            <p className="text-2xl font-bold">124</p>
+            <p className="text-xl sm:text-2xl font-bold">124</p>
           </CardContent>
         </Card>
         <Card variant="stat">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">New This Month</p>
-            <p className="text-2xl font-bold text-green-500">+48</p>
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <p className="text-xs sm:text-sm text-muted-foreground">New This Month</p>
+            <p className="text-xl sm:text-2xl font-bold text-green-500">+48</p>
           </CardContent>
         </Card>
         <Card variant="stat">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Avg. Lifetime Value</p>
-            <p className="text-2xl font-bold">₹15.2L</p>
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">Avg. Lifetime Value</p>
+            <p className="text-xl sm:text-2xl font-bold">₹15.2L</p>
           </CardContent>
         </Card>
       </div>
@@ -77,17 +77,17 @@ const Customers = () => {
       {/* Customer List */}
       <Card variant="elevated">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
               All Customers
             </CardTitle>
             <div className="flex items-center gap-2">
-              <div className="relative">
+              <div className="relative flex-1 sm:flex-none">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Search customers..." className="pl-10 w-64" />
+                <Input placeholder="Search..." className="pl-10 w-full sm:w-48 md:w-64" />
               </div>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" className="shrink-0 h-9 w-9 sm:h-10 sm:w-10">
                 <Filter className="w-4 h-4" />
               </Button>
             </div>
@@ -98,35 +98,37 @@ const Customers = () => {
             {customers.map((customer) => (
               <div 
                 key={customer.id} 
-                className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
               >
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                    {customer.name.split(' ').map(n => n[0]).join('')}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold">{customer.name}</p>
-                    <Badge className={getTierColor(customer.tier)}>
-                      {customer.tier === "Platinum" && <Star className="w-3 h-3 mr-1" />}
-                      {customer.tier}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                    <span className="flex items-center gap-1">
-                      <Mail className="w-3 h-3" />
-                      {customer.email}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Phone className="w-3 h-3" />
-                      {customer.phone}
-                    </span>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
+                    <AvatarFallback className="bg-primary/20 text-primary font-semibold text-sm">
+                      {customer.name.split(' ').map(n => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-sm sm:text-base truncate">{customer.name}</p>
+                      <Badge className={`${getTierColor(customer.tier)} text-xs`}>
+                        {customer.tier === "Platinum" && <Star className="w-3 h-3 mr-1" />}
+                        {customer.tier}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-1">
+                      <span className="flex items-center gap-1 truncate">
+                        <Mail className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{customer.email}</span>
+                      </span>
+                      <span className="flex items-center gap-1 hidden md:flex">
+                        <Phone className="w-3 h-3 shrink-0" />
+                        {customer.phone}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold text-primary">{customer.totalSpent}</p>
-                  <p className="text-sm text-muted-foreground">{customer.visits} visits</p>
+                <div className="text-left sm:text-right flex sm:flex-col justify-between sm:justify-start items-center sm:items-end gap-2">
+                  <p className="font-semibold text-primary text-sm sm:text-base">{customer.totalSpent}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{customer.visits} visits</p>
                 </div>
               </div>
             ))}

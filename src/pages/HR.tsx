@@ -16,17 +16,17 @@ const employees = [
 const HR = () => {
   return (
     <DashboardLayout>
-      <div className="mb-6 animate-fade-in">
-        <div className="flex items-center justify-between">
+      <div className="mb-6 animate-fade-in pt-2 sm:pt-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-display font-bold">
+            <h1 className="text-2xl sm:text-3xl font-display font-bold">
               <span className="text-gradient-gold">HR</span> & Team Management
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Manage employees, track performance, and handle recruitment
             </p>
           </div>
-          <Button variant="gold">
+          <Button variant="gold" className="shrink-0 w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" />
             Add Employee
           </Button>
@@ -34,41 +34,41 @@ const HR = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <Card variant="stat">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" />
-              <p className="text-sm text-muted-foreground">Total Employees</p>
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Users className="w-3 h-3 sm:w-4 sm:h-4 text-primary shrink-0" />
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">Total Employees</p>
             </div>
-            <p className="text-2xl font-bold">48</p>
+            <p className="text-xl sm:text-2xl font-bold">48</p>
           </CardContent>
         </Card>
         <Card variant="stat">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-green-500" />
-              <p className="text-sm text-muted-foreground">Active Today</p>
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Briefcase className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 shrink-0" />
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">Active Today</p>
             </div>
-            <p className="text-2xl font-bold text-green-500">42</p>
+            <p className="text-xl sm:text-2xl font-bold text-green-500">42</p>
           </CardContent>
         </Card>
         <Card variant="stat">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-yellow-500" />
-              <p className="text-sm text-muted-foreground">On Leave</p>
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 shrink-0" />
+              <p className="text-xs sm:text-sm text-muted-foreground">On Leave</p>
             </div>
-            <p className="text-2xl font-bold text-yellow-500">6</p>
+            <p className="text-xl sm:text-2xl font-bold text-yellow-500">6</p>
           </CardContent>
         </Card>
         <Card variant="stat">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Star className="w-4 h-4 text-primary" />
-              <p className="text-sm text-muted-foreground">Avg. Performance</p>
+          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Star className="w-3 h-3 sm:w-4 sm:h-4 text-primary shrink-0" />
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">Avg. Performance</p>
             </div>
-            <p className="text-2xl font-bold">4.6/5</p>
+            <p className="text-xl sm:text-2xl font-bold">4.6/5</p>
           </CardContent>
         </Card>
       </div>
@@ -76,8 +76,8 @@ const HR = () => {
       {/* Employee List */}
       <Card variant="elevated">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2">
-            <UserCog className="w-5 h-5 text-primary" />
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <UserCog className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             All Employees
           </CardTitle>
         </CardHeader>
@@ -86,29 +86,34 @@ const HR = () => {
             {employees.map((emp) => (
               <div 
                 key={emp.id} 
-                className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
               >
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                    {emp.name.split(' ').map(n => n[0]).join('')}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <p className="font-semibold">{emp.name}</p>
-                  <p className="text-sm text-muted-foreground">{emp.role} • {emp.department}</p>
-                </div>
-                <div className="text-right text-sm">
-                  <p className="text-muted-foreground">Joined {emp.joined}</p>
-                  <div className="flex items-center gap-1 justify-end mt-1">
-                    <Star className="w-3 h-3 text-primary fill-primary" />
-                    <span className="font-medium">{emp.rating}</span>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0">
+                    <AvatarFallback className="bg-primary/20 text-primary font-semibold text-sm">
+                      {emp.name.split(' ').map(n => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm sm:text-base truncate">{emp.name}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate">{emp.role} • {emp.department}</p>
                   </div>
                 </div>
-                <Badge 
-                  variant={emp.status === "Active" ? "default" : "secondary"}
-                >
-                  {emp.status}
-                </Badge>
+                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                  <div className="text-left sm:text-right text-xs sm:text-sm">
+                    <p className="text-muted-foreground">Joined {emp.joined}</p>
+                    <div className="flex items-center gap-1 sm:justify-end mt-0.5">
+                      <Star className="w-3 h-3 text-primary fill-primary shrink-0" />
+                      <span className="font-medium">{emp.rating}</span>
+                    </div>
+                  </div>
+                  <Badge 
+                    variant={emp.status === "Active" ? "default" : "secondary"}
+                    className="text-xs whitespace-nowrap"
+                  >
+                    {emp.status}
+                  </Badge>
+                </div>
               </div>
             ))}
           </div>
