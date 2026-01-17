@@ -10,8 +10,6 @@ import {
   ShoppingBag,
   Users,
   Package,
-  TrendingUp,
-  Gift,
 } from "lucide-react";
 
 const stats = [
@@ -53,40 +51,42 @@ const Index = () => {
   return (
     <DashboardLayout>
       {/* Welcome Section */}
-      <div className="mb-8 animate-fade-in">
-        <h1 className="text-3xl font-display font-bold">
+      <div className="mb-6 sm:mb-8 animate-fade-in pt-2 sm:pt-0">
+        <h1 className="text-2xl sm:text-3xl font-display font-bold">
           Good Morning, <span className="text-gradient-gold">Rajesh</span>
         </h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-muted-foreground mt-1 text-sm sm:text-base">
           Here's what's happening at your jewellery store today.
         </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         {stats.map((stat, index) => (
           <StatCard key={stat.title} {...stat} delay={index * 100} />
         ))}
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Sales Chart - Takes 2 columns */}
-        <SalesChart />
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 mb-6">
+        {/* Sales Chart - Takes 2 columns on xl */}
+        <div className="xl:col-span-2">
+          <SalesChart />
+        </div>
         
         {/* Metal Prices */}
         <MetalPriceCard />
       </div>
 
       {/* Lower Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
         {/* Recent Transactions */}
-        <div className="lg:col-span-2">
+        <div className="xl:col-span-2">
           <RecentTransactions />
         </div>
 
         {/* Right Column */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <InventoryAlerts />
           <QuickActions />
         </div>

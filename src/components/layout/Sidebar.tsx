@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -17,6 +19,8 @@ import {
   BarChart3,
   Wallet,
   Building2,
+  Menu,
+  X,
 } from "lucide-react";
 
 interface NavItem {
@@ -45,22 +49,24 @@ const managementItems: NavItem[] = [
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const isMobile = useIsMobile();
 
-  return (
-    <aside
-      className={cn(
-        "fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col",
-        collapsed ? "w-20" : "w-64"
-      )}
-    >
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
+    <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-gold flex items-center justify-center shadow-gold">
+          <div className="w-10 h-10 rounded-xl bg-gradient-gold flex items-center justify-center shadow-gold shrink-0">
             <Gem className="w-5 h-5 text-primary-foreground" />
           </div>
-          {!collapsed && (
+          {(!collapsed || mobile) && (
             <div className="animate-fade-in">
               <h1 className="font-display text-lg font-bold text-gradient-gold">
                 Jellowey
@@ -76,7 +82,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
         <div className="space-y-1">
-          {!collapsed && (
+          {(!collapsed || mobile) && (
             <p className="px-3 mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Main
             </p>
@@ -86,13 +92,13 @@ export function Sidebar() {
               key={item.href}
               item={item}
               active={location.pathname === item.href}
-              collapsed={collapsed}
+              collapsed={collapsed && !mobile}
             />
           ))}
         </div>
 
         <div className="mt-6 space-y-1">
-          {!collapsed && (
+          {(!collapsed || mobile) && (
             <p className="px-3 mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Management
             </p>
@@ -102,30 +108,66 @@ export function Sidebar() {
               key={item.href}
               item={item}
               active={location.pathname === item.href}
-              collapsed={collapsed}
+              collapsed={collapsed && !mobile}
             />
           ))}
         </div>
       </nav>
 
-      {/* Collapse Button */}
-      <div className="p-3 border-t border-sidebar-border">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-center"
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <>
-              <ChevronLeft className="w-4 h-4" />
-              <span className="ml-2">Collapse</span>
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Collapse Button - Desktop only */}
+      {!mobile && (
+        <div className="p-3 border-t border-sidebar-border">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-center"
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <>
+                <ChevronLeft className="w-4 h-4" />
+                <span className="ml-2">Collapse</span>
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
+  // Mobile: Sheet sidebar
+  if (isMobile) {
+    return (
+      <>
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="fixed top-3 left-3 z-50 bg-background/80 backdrop-blur-sm shadow-md lg:hidden"
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 p-0 bg-sidebar border-sidebar-border">
+            <SidebarContent mobile />
+          </SheetContent>
+        </Sheet>
+      </>
+    );
+  }
+
+  // Desktop: Fixed sidebar
+  return (
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 hidden lg:flex flex-col",
+        collapsed ? "w-20" : "w-64"
+      )}
+    >
+      <SidebarContent />
     </aside>
   );
 }
@@ -148,7 +190,8 @@ function NavButton({
         "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
         active
           ? "bg-sidebar-accent text-primary shadow-sm"
-          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+        collapsed && "justify-center px-2"
       )}
     >
       <Icon
@@ -159,7 +202,7 @@ function NavButton({
       />
       {!collapsed && (
         <>
-          <span className="flex-1 text-left">{item.label}</span>
+          <span className="flex-1 text-left truncate">{item.label}</span>
           {item.badge && (
             <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/20 text-primary">
               {item.badge}
