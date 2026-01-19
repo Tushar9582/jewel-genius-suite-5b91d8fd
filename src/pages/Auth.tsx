@@ -8,9 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Mail, Lock, Sparkles } from 'lucide-react';
 import { z } from 'zod';
+
+const emailSchema = z.string().trim().email({ message: "Please enter a valid email address" });
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Please enter a valid email address" }),
@@ -23,10 +26,49 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotEmailError, setForgotEmailError] = useState('');
+  const [isForgotLoading, setIsForgotLoading] = useState(false);
+  const [forgotDialogOpen, setForgotDialogOpen] = useState(false);
   
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotEmailError('');
+    
+    try {
+      emailSchema.parse(forgotEmail);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setForgotEmailError(error.errors[0].message);
+      }
+      return;
+    }
+    
+    setIsForgotLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setIsForgotLoading(false);
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to send reset email",
+        description: error.message,
+      });
+    } else {
+      toast({
+        title: "Check your email",
+        description: "We've sent you a password reset link.",
+      });
+      setForgotDialogOpen(false);
+      setForgotEmail('');
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
@@ -188,6 +230,49 @@ export default function Auth() {
                     />
                   </div>
                   {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                  <Dialog open={forgotDialogOpen} onOpenChange={setForgotDialogOpen}>
+                    <DialogTrigger asChild>
+                      <button type="button" className="text-sm text-primary hover:underline">
+                        Forgot password?
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Reset your password</DialogTitle>
+                        <DialogDescription>
+                          Enter your email address and we'll send you a link to reset your password.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={handleForgotPassword} className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="forgot-email">Email</Label>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                              id="forgot-email"
+                              type="email"
+                              placeholder="you@example.com"
+                              value={forgotEmail}
+                              onChange={(e) => setForgotEmail(e.target.value)}
+                              className="pl-10"
+                              disabled={isForgotLoading}
+                            />
+                          </div>
+                          {forgotEmailError && <p className="text-sm text-destructive">{forgotEmailError}</p>}
+                        </div>
+                        <Button type="submit" className="w-full bg-gradient-gold hover:opacity-90" disabled={isForgotLoading}>
+                          {isForgotLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            'Send Reset Link'
+                          )}
+                        </Button>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                 </div>
                 <Button type="submit" className="w-full bg-gradient-gold hover:opacity-90" disabled={isLoading || isGoogleLoading}>
                   {isLoading ? (
