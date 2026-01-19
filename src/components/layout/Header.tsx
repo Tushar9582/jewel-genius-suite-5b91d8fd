@@ -1,8 +1,32 @@
-import { Bell, Search, User, Globe, Store } from "lucide-react";
+import { Bell, Search, User, Globe, Store, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 export function Header() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    await signOut();
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    });
+    navigate('/auth');
+  };
+
   return (
     <header className="sticky top-0 z-30 h-14 sm:h-16 bg-background/80 backdrop-blur-xl border-b border-border flex items-center justify-between px-4 sm:px-6">
       {/* Left Section - Store info (hidden on mobile, shown on tablet+) */}
@@ -38,16 +62,35 @@ export function Header() {
           <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 rounded-full bg-primary animate-pulse" />
         </Button>
 
-        {/* User Profile */}
-        <Button variant="ghost" className="gap-2 ml-1 sm:ml-2 px-2 sm:px-3">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-gold flex items-center justify-center shrink-0">
-            <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary-foreground" />
-          </div>
-          <div className="text-left hidden md:block">
-            <p className="text-sm font-medium leading-tight">Rajesh Kumar</p>
-            <p className="text-xs text-muted-foreground">Admin</p>
-          </div>
-        </Button>
+        {/* User Profile with Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="gap-2 ml-1 sm:ml-2 px-2 sm:px-3">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-gold flex items-center justify-center shrink-0">
+                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary-foreground" />
+              </div>
+              <div className="text-left hidden md:block">
+                <p className="text-sm font-medium leading-tight">
+                  {user?.email?.split('@')[0] || 'Admin'}
+                </p>
+                <p className="text-xs text-muted-foreground">Admin</p>
+              </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/settings')}>
+              <User className="mr-2 h-4 w-4" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
