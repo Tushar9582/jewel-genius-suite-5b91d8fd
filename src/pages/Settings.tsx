@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Store, Bell, Shield, Palette, Globe, Database, CreditCard } from "lucide-react";
+import { Store, Bell, Shield, Palette, Globe, Database, CreditCard, Sun, Moon, Monitor } from "lucide-react";
+import { useTheme } from "next-themes";
 
 const Settings = () => {
+  const { theme, setTheme } = useTheme();
   return (
     <DashboardLayout>
       <div className="mb-6 animate-fade-in pt-2 sm:pt-0">
@@ -136,15 +138,56 @@ const Settings = () => {
 
         {/* Quick Links */}
         <div className="space-y-4 sm:space-y-6">
+          {/* Appearance */}
+          <Card variant="elevated">
+            <CardHeader className="pb-3 sm:pb-4">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                Appearance
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Customize how the app looks</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="text-xs sm:text-sm mb-3 block">Theme</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={theme === 'light' ? 'gold' : 'outline'}
+                    size="sm"
+                    onClick={() => setTheme('light')}
+                    className="gap-2"
+                  >
+                    <Sun className="w-4 h-4" />
+                    Light
+                  </Button>
+                  <Button
+                    variant={theme === 'dark' ? 'gold' : 'outline'}
+                    size="sm"
+                    onClick={() => setTheme('dark')}
+                    className="gap-2"
+                  >
+                    <Moon className="w-4 h-4" />
+                    Dark
+                  </Button>
+                  <Button
+                    variant={theme === 'system' ? 'gold' : 'outline'}
+                    size="sm"
+                    onClick={() => setTheme('system')}
+                    className="gap-2"
+                  >
+                    <Monitor className="w-4 h-4" />
+                    System
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card variant="elevated">
             <CardHeader className="pb-3 sm:pb-4">
               <CardTitle className="text-base sm:text-lg">Quick Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start gap-2 h-10 sm:h-11 text-sm">
-                <Palette className="w-4 h-4 shrink-0" />
-                <span className="truncate">Appearance</span>
-              </Button>
               <Button variant="outline" className="w-full justify-start gap-2 h-10 sm:h-11 text-sm">
                 <Globe className="w-4 h-4 shrink-0" />
                 <span className="truncate">Language & Region</span>
