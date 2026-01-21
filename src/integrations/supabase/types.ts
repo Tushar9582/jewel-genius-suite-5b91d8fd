@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      data_exports: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          export_type: string
+          file_url: string | null
+          format: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          export_type: string
+          file_url?: string | null
+          format: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          export_type?: string
+          file_url?: string | null
+          format?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -41,15 +77,85 @@ export type Database = {
         }
         Relationships: []
       }
+      user_preferences: {
+        Row: {
+          auto_backup: boolean | null
+          backup_frequency: string | null
+          created_at: string
+          currency: string | null
+          id: string
+          language: string
+          last_backup_at: string | null
+          region: string | null
+          timezone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_backup?: boolean | null
+          backup_frequency?: string | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          language?: string
+          last_backup_at?: string | null
+          region?: string | null
+          timezone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_backup?: boolean | null
+          backup_frequency?: string | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          language?: string
+          last_backup_at?: string | null
+          region?: string | null
+          timezone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_own_profile: { Args: { profile_user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -176,6 +282,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
