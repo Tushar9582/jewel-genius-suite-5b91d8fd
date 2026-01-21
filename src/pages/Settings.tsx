@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,11 +6,95 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Store, Bell, Shield, Palette, Globe, Database, CreditCard, Sun, Moon, Monitor } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Store, Bell, Shield, Palette, Globe, Database, CreditCard, Sun, Moon, Monitor, ArrowLeft } from "lucide-react";
 import { useTheme } from "next-themes";
+import { LanguageRegionSettings } from "@/components/settings/LanguageRegionSettings";
+import { BackupExportSettings } from "@/components/settings/BackupExportSettings";
+import { BillingPlansSettings } from "@/components/settings/BillingPlansSettings";
+
+type SettingsView = 'main' | 'language' | 'backup' | 'billing';
 
 const Settings = () => {
   const { theme, setTheme } = useTheme();
+  const [currentView, setCurrentView] = useState<SettingsView>('main');
+
+  const renderBackButton = () => (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => setCurrentView('main')}
+      className="mb-4 gap-2"
+    >
+      <ArrowLeft className="w-4 h-4" />
+      Back to Settings
+    </Button>
+  );
+
+  // Render sub-views
+  if (currentView === 'language') {
+    return (
+      <DashboardLayout>
+        <div className="animate-fade-in pt-2 sm:pt-0">
+          {renderBackButton()}
+          <div className="mb-6">
+            <h1 className="text-2xl sm:text-3xl font-display font-bold">
+              <span className="text-gradient-gold">Language & Region</span>
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+              Set your preferred language, region, and timezone
+            </p>
+          </div>
+          <div className="max-w-2xl">
+            <LanguageRegionSettings />
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (currentView === 'backup') {
+    return (
+      <DashboardLayout>
+        <div className="animate-fade-in pt-2 sm:pt-0">
+          {renderBackButton()}
+          <div className="mb-6">
+            <h1 className="text-2xl sm:text-3xl font-display font-bold">
+              <span className="text-gradient-gold">Backup & Export</span>
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+              Manage your data backups and exports
+            </p>
+          </div>
+          <div className="max-w-2xl">
+            <BackupExportSettings />
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (currentView === 'billing') {
+    return (
+      <DashboardLayout>
+        <div className="animate-fade-in pt-2 sm:pt-0">
+          {renderBackButton()}
+          <div className="mb-6">
+            <h1 className="text-2xl sm:text-3xl font-display font-bold">
+              <span className="text-gradient-gold">Billing & Plans</span>
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+              Manage your subscription and billing details
+            </p>
+          </div>
+          <div className="max-w-4xl">
+            <BillingPlansSettings />
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="mb-6 animate-fade-in pt-2 sm:pt-0">
@@ -188,15 +273,27 @@ const Settings = () => {
               <CardTitle className="text-base sm:text-lg">Quick Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start gap-2 h-10 sm:h-11 text-sm">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-2 h-10 sm:h-11 text-sm"
+                onClick={() => setCurrentView('language')}
+              >
                 <Globe className="w-4 h-4 shrink-0" />
                 <span className="truncate">Language & Region</span>
               </Button>
-              <Button variant="outline" className="w-full justify-start gap-2 h-10 sm:h-11 text-sm">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-2 h-10 sm:h-11 text-sm"
+                onClick={() => setCurrentView('backup')}
+              >
                 <Database className="w-4 h-4 shrink-0" />
                 <span className="truncate">Backup & Export</span>
               </Button>
-              <Button variant="outline" className="w-full justify-start gap-2 h-10 sm:h-11 text-sm">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-2 h-10 sm:h-11 text-sm"
+                onClick={() => setCurrentView('billing')}
+              >
                 <CreditCard className="w-4 h-4 shrink-0" />
                 <span className="truncate">Billing & Plans</span>
               </Button>
