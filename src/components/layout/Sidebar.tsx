@@ -21,6 +21,7 @@ import {
   Building2,
   Menu,
   X,
+  ShieldCheck,
 } from "lucide-react";
 
 interface NavItem {
@@ -44,6 +45,7 @@ const managementItems: NavItem[] = [
   { icon: UserCog, label: "HR & Team", href: "/hr" },
   { icon: Wallet, label: "Payroll", href: "/payroll" },
   { icon: Building2, label: "Branches", href: "/branches" },
+  { icon: ShieldCheck, label: "Admin", href: "/admin", badge: "Admin" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
