@@ -53,6 +53,7 @@ import {
   UserMinus,
   Crown,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -76,9 +77,11 @@ const Admin = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [roleAction, setRoleAction] = useState<{ role: AppRole; action: 'add' | 'remove' } | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (isAdmin) {
@@ -147,6 +150,40 @@ const Admin = () => {
     setSelectedUser(user);
     setRoleAction({ role, action });
     setRoleDialogOpen(true);
+  };
+
+  const openDeleteDialog = (user: AdminUser) => {
+    setSelectedUser(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    try {
+      setDeleting(true);
+      
+      const response = await supabase.functions.invoke('admin-users', {
+        method: 'DELETE',
+        body: {
+          userId: selectedUser.id,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      toast.success(`Successfully deleted user ${selectedUser.display_name || selectedUser.email}`);
+      setDeleteDialogOpen(false);
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      toast.error(error.message || "Failed to delete user");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const getRoleBadge = (role: AppRole) => {
@@ -405,6 +442,18 @@ const Admin = () => {
                                       Remove Moderator
                                     </DropdownMenuItem>
                                   )}
+                                  {adminUser.id !== user?.id && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem 
+                                        onClick={() => openDeleteDialog(adminUser)}
+                                        className="text-destructive"
+                                      >
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Delete User
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
@@ -476,6 +525,36 @@ const Admin = () => {
               disabled={updating}
             >
               {updating ? 'Updating...' : 'Confirm'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Delete User
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Are you sure you want to permanently delete the user{' '}
+              <strong>{selectedUser?.display_name || selectedUser?.email}</strong>?
+              <br /><br />
+              This action cannot be undone. All user data including their profile, preferences, and roles will be permanently removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteUser}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting...' : 'Delete User'}
             </Button>
           </DialogFooter>
         </DialogContent>
