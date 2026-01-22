@@ -145,11 +145,43 @@ Deno.serve(async (req) => {
       )
     }
 
+    if (method === 'DELETE') {
+      // Delete user
+      const body = await req.json()
+      const { userId } = body
+
+      if (!userId) {
+        return new Response(
+          JSON.stringify({ error: 'Missing required field: userId' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Prevent self-deletion
+      if (userId === user.id) {
+        return new Response(
+          JSON.stringify({ error: 'Cannot delete your own account' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Delete the user from auth.users (this will cascade to user_roles and profiles due to ON DELETE CASCADE)
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
+      
+      if (deleteError) {
+        throw deleteError
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
       { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
-
   } catch (error: unknown) {
     console.error('Error:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
