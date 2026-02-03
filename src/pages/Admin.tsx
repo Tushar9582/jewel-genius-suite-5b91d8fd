@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -54,8 +55,10 @@ import {
   Crown,
   AlertTriangle,
   Trash2,
+  IdCard,
 } from "lucide-react";
 import { format } from "date-fns";
+import { EmployeeManagement } from "@/components/admin/EmployeeManagement";
 
 interface AdminUser {
   id: string;
@@ -246,9 +249,24 @@ const Admin = () => {
             <span className="text-gradient-gold">Admin Dashboard</span>
           </h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-            Manage users and their roles
+            Manage users, employees, and system settings
           </p>
         </div>
+
+        {/* Tabs for different admin sections */}
+        <Tabs defaultValue="users" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              User Management
+            </TabsTrigger>
+            <TabsTrigger value="employees" className="flex items-center gap-2">
+              <IdCard className="w-4 h-4" />
+              Employee Accounts
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="users" className="mt-6 space-y-6">
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -500,6 +518,12 @@ const Admin = () => {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="employees" className="mt-6">
+            <EmployeeManagement />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Role Confirmation Dialog */}

@@ -50,6 +50,80 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_sessions: {
+        Row: {
+          created_at: string
+          employee_id: string
+          expires_at: string
+          id: string
+          session_token: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          expires_at: string
+          id?: string
+          session_token: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          expires_at?: string
+          id?: string
+          session_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_sessions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department: string | null
+          email: string | null
+          employee_id: string
+          id: string
+          is_active: boolean | null
+          name: string
+          password_hash: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          email?: string | null
+          employee_id: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          password_hash: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          email?: string | null
+          employee_id?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          password_hash?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
