@@ -1,17 +1,142 @@
+import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Megaphone, Mail, MessageSquare, Bell, Plus, Send, Users, TrendingUp, Calendar } from "lucide-react";
+import { Megaphone, Mail, MessageSquare, Bell, Plus, Send, Users, TrendingUp, Calendar, Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
-const campaigns = [
-  { id: 1, name: "Diwali Gold Rush", type: "Email + SMS", status: "Active", sent: 2450, opened: 1820, converted: 156 },
-  { id: 2, name: "Anniversary Discounts", type: "Push Notification", status: "Scheduled", sent: 0, opened: 0, converted: 0 },
-  { id: 3, name: "New Collection Launch", type: "Email", status: "Completed", sent: 3200, opened: 2100, converted: 245 },
-  { id: 4, name: "Loyalty Rewards Reminder", type: "SMS", status: "Active", sent: 1850, opened: 1650, converted: 89 },
-];
+interface Campaign {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  sent_count: number;
+  opened_count: number;
+  converted_count: number;
+}
 
 const Marketing = () => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    type: "Email",
+    status: "Draft",
+  });
+
+  const queryClient = useQueryClient();
+
+  const { data: campaigns = [], isLoading } = useQuery({
+    queryKey: ["campaigns"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("campaigns")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as Campaign[];
+    },
+  });
+
+  const addCampaignMutation = useMutation({
+    mutationFn: async (newCampaign: Omit<Campaign, "id" | "sent_count" | "opened_count" | "converted_count">) => {
+      const { data, error } = await supabase
+        .from("campaigns")
+        .insert([{
+          ...newCampaign,
+          sent_count: 0,
+          opened_count: 0,
+          converted_count: 0,
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      toast.success("Campaign created successfully!");
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error("Failed to create campaign: " + error.message);
+    },
+  });
+
+  const activateCampaignMutation = useMutation({
+    mutationFn: async (campaignId: string) => {
+      // Simulate sending campaign
+      const sentCount = Math.floor(Math.random() * 2000) + 500;
+      const openedCount = Math.floor(sentCount * 0.65);
+      const convertedCount = Math.floor(openedCount * 0.1);
+
+      const { error } = await supabase
+        .from("campaigns")
+        .update({
+          status: "Active",
+          sent_count: sentCount,
+          opened_count: openedCount,
+          converted_count: convertedCount,
+        })
+        .eq("id", campaignId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      toast.success("Campaign activated!");
+    },
+    onError: (error) => {
+      toast.error("Failed to activate campaign: " + error.message);
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      type: "Email",
+      status: "Draft",
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    addCampaignMutation.mutate({
+      name: formData.name,
+      type: formData.type,
+      status: formData.status,
+    });
+  };
+
+  const stats = {
+    messagesSent: campaigns.reduce((acc, c) => acc + c.sent_count, 0),
+    openRate: campaigns.length > 0
+      ? (campaigns.reduce((acc, c) => acc + c.opened_count, 0) / Math.max(campaigns.reduce((acc, c) => acc + c.sent_count, 0), 1)) * 100
+      : 0,
+    conversionRate: campaigns.length > 0
+      ? (campaigns.reduce((acc, c) => acc + c.converted_count, 0) / Math.max(campaigns.reduce((acc, c) => acc + c.opened_count, 0), 1)) * 100
+      : 0,
+    activeCampaigns: campaigns.filter((c) => c.status === "Active").length,
+  };
+
   return (
     <DashboardLayout>
       <div className="mb-6 animate-fade-in pt-2 sm:pt-0">
@@ -24,10 +149,70 @@ const Marketing = () => {
               Create campaigns, automate marketing, and track performance
             </p>
           </div>
-          <Button variant="gold" className="shrink-0 w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" />
-            New Campaign
-          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="gold" className="shrink-0 w-full sm:w-auto">
+                <Plus className="w-4 h-4 mr-2" />
+                New Campaign
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Create New Campaign</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Campaign Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Diwali Gold Rush"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Campaign Type</Label>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(v) => setFormData({ ...formData, type: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Email">Email</SelectItem>
+                        <SelectItem value="SMS">SMS</SelectItem>
+                        <SelectItem value="Push Notification">Push Notification</SelectItem>
+                        <SelectItem value="Email + SMS">Email + SMS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(v) => setFormData({ ...formData, status: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Draft">Draft</SelectItem>
+                        <SelectItem value="Scheduled">Scheduled</SelectItem>
+                        <SelectItem value="Active">Active</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button type="submit" variant="gold" className="w-full" disabled={addCampaignMutation.isPending}>
+                  {addCampaignMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Create Campaign
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -39,7 +224,7 @@ const Marketing = () => {
               <Send className="w-3 h-3 sm:w-4 sm:h-4 text-primary shrink-0" />
               <p className="text-xs sm:text-sm text-muted-foreground truncate">Messages Sent</p>
             </div>
-            <p className="text-xl sm:text-2xl font-bold">24,580</p>
+            <p className="text-xl sm:text-2xl font-bold">{stats.messagesSent.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card variant="stat">
@@ -48,7 +233,7 @@ const Marketing = () => {
               <Users className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 shrink-0" />
               <p className="text-xs sm:text-sm text-muted-foreground">Open Rate</p>
             </div>
-            <p className="text-xl sm:text-2xl font-bold text-green-500">68.5%</p>
+            <p className="text-xl sm:text-2xl font-bold text-green-500">{stats.openRate.toFixed(1)}%</p>
           </CardContent>
         </Card>
         <Card variant="stat">
@@ -57,7 +242,7 @@ const Marketing = () => {
               <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-primary shrink-0" />
               <p className="text-xs sm:text-sm text-muted-foreground truncate">Conversion</p>
             </div>
-            <p className="text-xl sm:text-2xl font-bold text-primary">8.2%</p>
+            <p className="text-xl sm:text-2xl font-bold text-primary">{stats.conversionRate.toFixed(1)}%</p>
           </CardContent>
         </Card>
         <Card variant="stat">
@@ -66,7 +251,7 @@ const Marketing = () => {
               <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 shrink-0" />
               <p className="text-xs sm:text-sm text-muted-foreground truncate">Active</p>
             </div>
-            <p className="text-xl sm:text-2xl font-bold">4</p>
+            <p className="text-xl sm:text-2xl font-bold">{stats.activeCampaigns}</p>
           </CardContent>
         </Card>
       </div>
@@ -82,41 +267,67 @@ const Marketing = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {campaigns.map((campaign) => (
-                  <div 
-                    key={campaign.id} 
-                    className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-gold/20 flex items-center justify-center shrink-0">
-                        {campaign.type.includes("Email") ? <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-primary" /> :
-                         campaign.type.includes("SMS") ? <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-primary" /> :
-                         <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />}
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : campaigns.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No campaigns yet. Create your first campaign!</p>
+              ) : (
+                <div className="space-y-3">
+                  {campaigns.map((campaign) => (
+                    <div
+                      key={campaign.id}
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-gold/20 flex items-center justify-center shrink-0">
+                          {campaign.type.includes("Email") ? (
+                            <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                          ) : campaign.type.includes("SMS") ? (
+                            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                          ) : (
+                            <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm sm:text-base truncate">{campaign.name}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">{campaign.type}</p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm sm:text-base truncate">{campaign.name}</p>
-                        <p className="text-xs sm:text-sm text-muted-foreground">{campaign.type}</p>
+                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                        <div className="text-left sm:text-right text-xs sm:text-sm">
+                          <p className="font-medium">{campaign.sent_count.toLocaleString()} sent</p>
+                          <p className="text-muted-foreground">{campaign.converted_count} conversions</p>
+                        </div>
+                        {campaign.status === "Draft" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => activateCampaignMutation.mutate(campaign.id)}
+                            disabled={activateCampaignMutation.isPending}
+                          >
+                            Activate
+                          </Button>
+                        ) : (
+                          <Badge
+                            variant={
+                              campaign.status === "Active"
+                                ? "default"
+                                : campaign.status === "Scheduled"
+                                ? "secondary"
+                                : "outline"
+                            }
+                            className="text-xs whitespace-nowrap"
+                          >
+                            {campaign.status}
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
-                      <div className="text-left sm:text-right text-xs sm:text-sm">
-                        <p className="font-medium">{campaign.sent.toLocaleString()} sent</p>
-                        <p className="text-muted-foreground">{campaign.converted} conversions</p>
-                      </div>
-                      <Badge 
-                        variant={
-                          campaign.status === "Active" ? "default" : 
-                          campaign.status === "Scheduled" ? "secondary" : "outline"
-                        }
-                        className="text-xs whitespace-nowrap"
-                      >
-                        {campaign.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
