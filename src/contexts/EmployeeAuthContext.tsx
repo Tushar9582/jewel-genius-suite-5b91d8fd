@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { ref, get, query, orderByChild, equalTo, set, remove } from 'firebase/database';
+import { db } from '@/lib/firebase';
 
 interface Employee {
   id: string;
@@ -26,36 +27,41 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session on mount
     validateSession();
   }, []);
 
   const validateSession = async () => {
     const sessionToken = localStorage.getItem(SESSION_KEY);
-    
     if (!sessionToken) {
       setLoading(false);
       return;
     }
 
     try {
-      const url = new URL(import.meta.env.VITE_SUPABASE_URL);
-      const response = await fetch(
-        `${url.origin}/functions/v1/employee-auth?action=validate`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_token: sessionToken }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok || !data?.valid) {
+      const sessionRef = ref(db, `employee_sessions/${sessionToken}`);
+      const snapshot = await get(sessionRef);
+      
+      if (!snapshot.exists()) {
         localStorage.removeItem(SESSION_KEY);
         setEmployee(null);
-      } else {
-        setEmployee(data.employee);
+        setLoading(false);
+        return;
+      }
+
+      const sessionData = snapshot.val();
+      if (new Date(sessionData.expires_at) < new Date()) {
+        await remove(sessionRef);
+        localStorage.removeItem(SESSION_KEY);
+        setEmployee(null);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch employee data
+      const empRef = ref(db, `employees/${sessionData.employee_id}`);
+      const empSnapshot = await get(empRef);
+      if (empSnapshot.exists()) {
+        setEmployee({ id: sessionData.employee_id, ...empSnapshot.val() });
       }
     } catch (error) {
       console.error('Session validation error:', error);
@@ -68,66 +74,79 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (employeeId: string, password: string) => {
     try {
-      const url = new URL(import.meta.env.VITE_SUPABASE_URL);
-      const response = await fetch(
-        `${url.origin}/functions/v1/employee-auth?action=login`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ employee_id: employeeId, password }),
+      // Find employee by employee_id
+      const employeesRef = ref(db, 'employees');
+      const snapshot = await get(employeesRef);
+      
+      if (!snapshot.exists()) {
+        return { error: new Error('No employees found') };
+      }
+
+      let foundEmployee: any = null;
+      let foundKey: string = '';
+      
+      snapshot.forEach((child) => {
+        const emp = child.val();
+        if (emp.employee_id === employeeId) {
+          foundEmployee = emp;
+          foundKey = child.key!;
         }
-      );
+      });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { error: new Error(data?.error || 'Login failed') };
+      if (!foundEmployee) {
+        return { error: new Error('Employee not found') };
       }
 
-      if (!data?.success) {
-        return { error: new Error(data?.error || 'Login failed') };
+      // Simple password check (in production, use proper hashing)
+      if (foundEmployee.password_hash !== password) {
+        return { error: new Error('Invalid credentials') };
       }
 
-      localStorage.setItem(SESSION_KEY, data.session_token);
-      setEmployee(data.employee);
+      if (foundEmployee.is_active === false) {
+        return { error: new Error('Account is deactivated') };
+      }
+
+      // Create session
+      const sessionToken = crypto.randomUUID();
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+
+      await set(ref(db, `employee_sessions/${sessionToken}`), {
+        employee_id: foundKey,
+        created_at: new Date().toISOString(),
+        expires_at: expiresAt.toISOString(),
+      });
+
+      localStorage.setItem(SESSION_KEY, sessionToken);
+      setEmployee({
+        id: foundKey,
+        employee_id: foundEmployee.employee_id,
+        name: foundEmployee.name,
+        email: foundEmployee.email || null,
+        department: foundEmployee.department || null,
+      });
+      
       return { error: null };
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Login failed';
-      return { error: new Error(errorMessage) };
+    } catch (error: any) {
+      return { error: new Error(error.message || 'Login failed') };
     }
   };
 
   const signOut = async () => {
     const sessionToken = localStorage.getItem(SESSION_KEY);
-    
     if (sessionToken) {
       try {
-        const url = new URL(import.meta.env.VITE_SUPABASE_URL);
-        await fetch(
-          `${url.origin}/functions/v1/employee-auth?action=logout`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ session_token: sessionToken }),
-          }
-        );
+        await remove(ref(db, `employee_sessions/${sessionToken}`));
       } catch (error) {
         console.error('Logout error:', error);
       }
     }
-
     localStorage.removeItem(SESSION_KEY);
     setEmployee(null);
   };
 
   return (
-    <EmployeeAuthContext.Provider value={{ 
-      employee, 
-      loading, 
-      signIn, 
-      signOut,
-      isAuthenticated: !!employee 
-    }}>
+    <EmployeeAuthContext.Provider value={{ employee, loading, signIn, signOut, isAuthenticated: !!employee }}>
       {children}
     </EmployeeAuthContext.Provider>
   );

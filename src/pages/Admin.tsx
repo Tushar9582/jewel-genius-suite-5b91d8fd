@@ -41,7 +41,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserRole, AppRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { getAll, addItem, updateItem, deleteItem, getByField } from "@/lib/firebaseDb";
 import { toast } from "sonner";
 import { 
   Users, 
@@ -95,22 +95,23 @@ const Admin = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        toast.error("Not authenticated");
-        return;
-      }
+      // Fetch from Firebase RTDB
+      const profiles = await getAll<any>('profiles');
+      const roles = await getAll<any>('user_roles');
 
-      const response = await supabase.functions.invoke('admin-users', {
-        method: 'GET',
-      });
+      const mappedUsers: AdminUser[] = profiles.map((p: any) => ({
+        id: p.user_id || p.id,
+        email: p.email || 'N/A',
+        created_at: p.created_at || new Date().toISOString(),
+        last_sign_in_at: null,
+        display_name: p.display_name || null,
+        avatar_url: p.avatar_url || null,
+        roles: roles.filter((r: any) => r.user_id === (p.user_id || p.id)).map((r: any) => r.role as AppRole),
+      }));
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      setUsers(response.data.users || []);
+      // Ensure at least user role for all
+      mappedUsers.forEach(u => { if (u.roles.length === 0) u.roles = ['user']; });
+      setUsers(mappedUsers);
     } catch (error: any) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users");
@@ -121,23 +122,15 @@ const Admin = () => {
 
   const handleRoleChange = async () => {
     if (!selectedUser || !roleAction) return;
-
     try {
       setUpdating(true);
-      
-      const response = await supabase.functions.invoke('admin-users', {
-        method: 'PATCH',
-        body: {
-          userId: selectedUser.id,
-          role: roleAction.role,
-          action: roleAction.action,
-        },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message);
+      if (roleAction.action === 'add') {
+        await addItem('user_roles', { user_id: selectedUser.id, role: roleAction.role });
+      } else {
+        const existing = await getByField<any>('user_roles', 'user_id', selectedUser.id);
+        const toRemove = existing.find((r: any) => r.role === roleAction.role);
+        if (toRemove) await deleteItem('user_roles', toRemove.id);
       }
-
       toast.success(`Successfully ${roleAction.action === 'add' ? 'added' : 'removed'} ${roleAction.role} role`);
       setRoleDialogOpen(false);
       fetchUsers();
@@ -162,21 +155,14 @@ const Admin = () => {
 
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
-
     try {
       setDeleting(true);
+      // Remove user roles and profile from Firebase
+      const roles = await getByField<any>('user_roles', 'user_id', selectedUser.id);
+      for (const r of roles) await deleteItem('user_roles', r.id);
+      const profiles = await getByField<any>('profiles', 'user_id', selectedUser.id);
+      for (const p of profiles) await deleteItem('profiles', p.id);
       
-      const response = await supabase.functions.invoke('admin-users', {
-        method: 'DELETE',
-        body: {
-          userId: selectedUser.id,
-        },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
       toast.success(`Successfully deleted user ${selectedUser.display_name || selectedUser.email}`);
       setDeleteDialogOpen(false);
       setSelectedUser(null);
@@ -396,7 +382,7 @@ const Admin = () => {
                                 <div className="min-w-0">
                                   <p className="font-medium text-sm truncate">
                                     {adminUser.display_name || 'No name'}
-                                    {adminUser.id === user?.id && (
+                                    {adminUser.id === user?.uid && (
                                       <Badge variant="outline" className="ml-2 text-xs">You</Badge>
                                     )}
                                   </p>
@@ -437,7 +423,7 @@ const Admin = () => {
                                       <UserPlus className="w-4 h-4 mr-2" />
                                       Make Admin
                                     </DropdownMenuItem>
-                                  ) : adminUser.id !== user?.id && (
+                                  ) : adminUser.id !== user?.uid && (
                                     <DropdownMenuItem 
                                       onClick={() => openRoleDialog(adminUser, 'admin', 'remove')}
                                       className="text-destructive"
@@ -460,7 +446,7 @@ const Admin = () => {
                                       Remove Moderator
                                     </DropdownMenuItem>
                                   )}
-                                  {adminUser.id !== user?.id && (
+                                  {adminUser.id !== user?.uid && (
                                     <>
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem 
