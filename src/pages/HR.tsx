@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client";
+import { getAll, addItem, updateItem, deleteItem } from "@/lib/firebaseDb";
 import { toast } from "sonner";
 import { 
   UserCog, 
@@ -96,12 +96,8 @@ const HR = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const response = await supabase.functions.invoke('manage-employees', {
-        method: 'GET',
-      });
-
-      if (response.error) throw new Error(response.error.message);
-      setEmployees(response.data.employees || []);
+      const data = await getAll<Employee>('employees');
+      setEmployees(data);
     } catch (error: any) {
       console.error("Error fetching employees:", error);
       toast.error("Failed to fetch employees");
@@ -135,13 +131,7 @@ const HR = () => {
 
     try {
       setSaving(true);
-      const response = await supabase.functions.invoke('manage-employees', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.error) throw new Error(response.error.message);
-      if (response.data.error) throw new Error(response.data.error);
+      await addItem('employees', { ...formData, is_active: true, password_hash: formData.password });
 
       toast.success("Employee created successfully! They can now login with their Employee ID and password.");
       setCreateDialogOpen(false);
@@ -180,13 +170,7 @@ const HR = () => {
         updateData.password = formData.password;
       }
 
-      const response = await supabase.functions.invoke('manage-employees', {
-        method: 'PATCH',
-        body: updateData,
-      });
-
-      if (response.error) throw new Error(response.error.message);
-      if (response.data.error) throw new Error(response.data.error);
+      await updateItem('employees', selectedEmployee!.id, updateData);
 
       toast.success("Employee updated successfully");
       setEditDialogOpen(false);
@@ -203,16 +187,7 @@ const HR = () => {
 
   const handleToggleActive = async (employee: Employee) => {
     try {
-      const response = await supabase.functions.invoke('manage-employees', {
-        method: 'PATCH',
-        body: {
-          id: employee.id,
-          is_active: !employee.is_active,
-        },
-      });
-
-      if (response.error) throw new Error(response.error.message);
-      if (response.data.error) throw new Error(response.data.error);
+      await updateItem('employees', employee.id, { is_active: !employee.is_active });
 
       toast.success(`Employee ${employee.is_active ? 'deactivated' : 'activated'} successfully`);
       fetchEmployees();
@@ -227,13 +202,7 @@ const HR = () => {
 
     try {
       setSaving(true);
-      const response = await supabase.functions.invoke('manage-employees', {
-        method: 'DELETE',
-        body: { id: selectedEmployee.id },
-      });
-
-      if (response.error) throw new Error(response.error.message);
-      if (response.data.error) throw new Error(response.data.error);
+      await deleteItem('employees', selectedEmployee.id);
 
       toast.success("Employee deleted successfully");
       setDeleteDialogOpen(false);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { getByField } from '@/lib/firebaseDb';
 
 export type AppRole = 'admin' | 'moderator' | 'user';
 
@@ -23,17 +23,11 @@ export function useUserRole() {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setRoles((data || []).map(r => r.role as AppRole));
+      const data = await getByField<{ role: AppRole; user_id: string }>('user_roles', 'user_id', user.uid);
+      setRoles(data.length > 0 ? data.map(r => r.role) : ['user']);
     } catch (error) {
       console.error('Error fetching roles:', error);
-      setRoles(['user']); // Default role
+      setRoles(['user']);
     } finally {
       setLoading(false);
     }

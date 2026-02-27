@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { getByField, addItem, updateItem } from '@/lib/firebaseDb';
 import { toast } from 'sonner';
 
 export interface UserPreferences {
@@ -36,26 +36,35 @@ export function useUserPreferences() {
     
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('user_preferences')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const results = await getByField<UserPreferences>('user_preferences', 'user_id', user.uid);
 
-      if (error) throw error;
-
-      if (!data) {
-        // Create default preferences if they don't exist
-        const { data: newData, error: insertError } = await supabase
-          .from('user_preferences')
-          .insert({ user_id: user.id })
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        setPreferences(newData);
+      if (results.length === 0) {
+        const id = await addItem('user_preferences', {
+          user_id: user.uid,
+          language: 'en',
+          region: 'IN',
+          timezone: 'Asia/Kolkata',
+          currency: 'INR',
+          auto_backup: false,
+          backup_frequency: 'weekly',
+          last_backup_at: null,
+        });
+        const newPref: UserPreferences = {
+          id,
+          user_id: user.uid,
+          language: 'en',
+          region: 'IN',
+          timezone: 'Asia/Kolkata',
+          currency: 'INR',
+          auto_backup: false,
+          backup_frequency: 'weekly',
+          last_backup_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        setPreferences(newPref);
       } else {
-        setPreferences(data);
+        setPreferences(results[0]);
       }
     } catch (error: any) {
       console.error('Error fetching preferences:', error);
@@ -69,14 +78,8 @@ export function useUserPreferences() {
     if (!user || !preferences) return false;
 
     try {
-      const { error } = await supabase
-        .from('user_preferences')
-        .update(updates)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setPreferences({ ...preferences, ...updates });
+      await updateItem('user_preferences', preferences.id, updates);
+      setPreferences({ ...preferences, ...updates } as UserPreferences);
       toast.success('Preferences updated');
       return true;
     } catch (error: any) {

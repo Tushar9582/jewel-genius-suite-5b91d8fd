@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Barcode, Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getAll, addItem, updateItem } from "@/lib/firebaseDb";
 
 interface Product {
   id: string;
@@ -31,13 +31,8 @@ const POS = () => {
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["pos-products"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, sku, name, weight, unit_price, stock")
-        .gt("stock", 0)
-        .order("name");
-      if (error) throw error;
-      return data as Product[];
+      const all = await getAll<Product>("products");
+      return all.filter(p => p.stock > 0).sort((a, b) => a.name.localeCompare(b.name));
     },
   });
 
@@ -48,34 +43,24 @@ const POS = () => {
       const total = subtotal + tax;
       const invoiceNumber = `INV-${Date.now()}`;
 
-      // Create sale record
-      const { error: saleError } = await supabase.from("sales").insert([
-        {
-          invoice_number: invoiceNumber,
-          items: cart.map((item) => ({
-            product_id: item.id,
-            name: item.name,
-            qty: item.qty,
-            price: item.unit_price,
-          })),
-          subtotal,
-          tax,
-          discount: 0,
-          total,
-          payment_method: paymentMethod,
-          status: "Completed",
-        },
-      ]);
+      await addItem("sales", {
+        invoice_number: invoiceNumber,
+        items: cart.map((item) => ({
+          product_id: item.id,
+          name: item.name,
+          qty: item.qty,
+          price: item.unit_price,
+        })),
+        subtotal,
+        tax,
+        discount: 0,
+        total,
+        payment_method: paymentMethod,
+        status: "Completed",
+      });
 
-      if (saleError) throw saleError;
-
-      // Update stock for each item
       for (const item of cart) {
-        const { error: stockError } = await supabase
-          .from("products")
-          .update({ stock: item.stock - item.qty })
-          .eq("id", item.id);
-        if (stockError) throw stockError;
+        await updateItem("products", item.id, { stock: item.stock - item.qty });
       }
 
       return invoiceNumber;
@@ -150,7 +135,6 @@ const POS = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
-        {/* Product Search & Scanner */}
         <div className="xl:col-span-2 space-y-4 sm:space-y-6">
           <Card variant="elevated">
             <CardHeader className="pb-3">
@@ -172,7 +156,6 @@ const POS = () => {
                 </div>
               </div>
 
-              {/* Product List */}
               <div className="mt-4 max-h-48 overflow-y-auto space-y-2">
                 {isLoading ? (
                   <div className="flex justify-center py-4">
@@ -208,7 +191,6 @@ const POS = () => {
             </CardContent>
           </Card>
 
-          {/* Cart Items */}
           <Card variant="elevated">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -240,33 +222,18 @@ const POS = () => {
                       </div>
                       <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7 sm:h-8 sm:w-8"
-                            onClick={() => updateQty(item.id, -1)}
-                          >
+                          <Button variant="outline" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => updateQty(item.id, -1)}>
                             <Minus className="w-3 h-3" />
                           </Button>
                           <span className="w-6 sm:w-8 text-center font-medium text-sm">{item.qty}</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7 sm:h-8 sm:w-8"
-                            onClick={() => updateQty(item.id, 1)}
-                          >
+                          <Button variant="outline" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => updateQty(item.id, 1)}>
                             <Plus className="w-3 h-3" />
                           </Button>
                         </div>
                         <p className="font-semibold text-primary text-sm sm:text-base w-20 sm:w-24 text-right">
                           ₹{(item.unit_price * item.qty).toLocaleString()}
                         </p>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive h-8 w-8"
-                          onClick={() => removeFromCart(item.id)}
-                        >
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => removeFromCart(item.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -278,7 +245,6 @@ const POS = () => {
           </Card>
         </div>
 
-        {/* Payment Summary */}
         <div className="space-y-4 sm:space-y-6">
           <Card variant="gold">
             <CardHeader className="pb-3 sm:pb-4">
@@ -309,40 +275,22 @@ const POS = () => {
               <div className="space-y-2 pt-4">
                 <p className="text-sm font-medium text-muted-foreground">Payment Method</p>
                 <div className="grid grid-cols-3 gap-2">
-                  <Button
-                    variant={paymentMethod === "Cash" ? "default" : "outline"}
-                    className="flex-col h-14 sm:h-16 gap-1"
-                    onClick={() => setPaymentMethod("Cash")}
-                  >
+                  <Button variant={paymentMethod === "Cash" ? "default" : "outline"} className="flex-col h-14 sm:h-16 gap-1" onClick={() => setPaymentMethod("Cash")}>
                     <Banknote className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span className="text-xs">Cash</span>
                   </Button>
-                  <Button
-                    variant={paymentMethod === "Card" ? "default" : "outline"}
-                    className="flex-col h-14 sm:h-16 gap-1"
-                    onClick={() => setPaymentMethod("Card")}
-                  >
+                  <Button variant={paymentMethod === "Card" ? "default" : "outline"} className="flex-col h-14 sm:h-16 gap-1" onClick={() => setPaymentMethod("Card")}>
                     <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span className="text-xs">Card</span>
                   </Button>
-                  <Button
-                    variant={paymentMethod === "UPI" ? "default" : "outline"}
-                    className="flex-col h-14 sm:h-16 gap-1"
-                    onClick={() => setPaymentMethod("UPI")}
-                  >
+                  <Button variant={paymentMethod === "UPI" ? "default" : "outline"} className="flex-col h-14 sm:h-16 gap-1" onClick={() => setPaymentMethod("UPI")}>
                     <Smartphone className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span className="text-xs">UPI</span>
                   </Button>
                 </div>
               </div>
 
-              <Button
-                variant="gold"
-                className="w-full mt-4"
-                size="lg"
-                disabled={cart.length === 0 || completeSaleMutation.isPending}
-                onClick={() => completeSaleMutation.mutate()}
-              >
+              <Button variant="gold" className="w-full mt-4" size="lg" disabled={cart.length === 0 || completeSaleMutation.isPending} onClick={() => completeSaleMutation.mutate()}>
                 {completeSaleMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Complete Sale
               </Button>
