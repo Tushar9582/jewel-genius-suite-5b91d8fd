@@ -131,7 +131,8 @@ const HR = () => {
 
     try {
       setSaving(true);
-      await addItem('employees', { ...formData, is_active: true, password_hash: formData.password });
+      const { password, ...rest } = formData;
+      await addItem('employees', { ...rest, is_active: true, password_hash: password });
 
       toast.success("Employee created successfully! They can now login with their Employee ID and password.");
       setCreateDialogOpen(false);
@@ -167,7 +168,7 @@ const HR = () => {
       };
 
       if (formData.password) {
-        updateData.password = formData.password;
+        updateData.password_hash = formData.password;
       }
 
       await updateItem('employees', selectedEmployee!.id, updateData);
