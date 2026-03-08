@@ -28,7 +28,7 @@ const EmployeeInventory = () => {
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["emp-products"],
-    queryFn: () => getAll<Product>("products"),
+    queryFn: () => employeeGetAll<Product>("products"),
   });
 
   const filteredProducts = products.filter((p) => {

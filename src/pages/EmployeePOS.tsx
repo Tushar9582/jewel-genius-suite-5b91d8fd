@@ -143,7 +143,7 @@ const EmployeePOS = () => {
 
       for (const item of cart) {
         if (!item.id.startsWith("calc-")) {
-          await updateItem("products", item.id, { stock: item.stock - item.qty });
+          await employeeUpdateItem("products", item.id, { stock: item.stock - item.qty });
         }
       }
       return invoiceNumber;
