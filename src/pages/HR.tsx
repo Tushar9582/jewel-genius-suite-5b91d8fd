@@ -107,26 +107,12 @@ const HR = () => {
         toast.success(`Fixed ${fixedCount} employee record(s) — passwords migrated successfully`);
       }
 
-      // Sync all Firebase employees to Supabase for edge function login
+      // Sync all Firebase employees to Supabase via edge function
       for (const emp of data) {
         if (emp.employee_id && emp.password_hash) {
-          // Check if exists first
-          const { data: existing } = await supabase.from('employees')
-            .select('id')
-            .eq('employee_id', emp.employee_id)
-            .maybeSingle();
-          
-          if (existing) {
-            await supabase.from('employees').update({
-              name: emp.name,
-              email: emp.email || null,
-              phone: emp.phone || null,
-              department: emp.department || null,
-              password_hash: emp.password_hash,
-              is_active: emp.is_active !== false,
-            }).eq('id', existing.id);
-          } else {
-            await supabase.from('employees').insert({
+          await supabase.functions.invoke('manage-employees', {
+            body: {
+              action: 'sync',
               employee_id: emp.employee_id,
               name: emp.name,
               email: emp.email || null,
@@ -134,8 +120,8 @@ const HR = () => {
               department: emp.department || null,
               password_hash: emp.password_hash,
               is_active: emp.is_active !== false,
-            });
-          }
+            },
+          });
         }
       }
       
@@ -154,24 +140,18 @@ const HR = () => {
       let syncCount = 0;
       for (const emp of employees) {
         if (emp.employee_id && emp.password_hash) {
-          const { data: existing } = await supabase.from('employees')
-            .select('id')
-            .eq('employee_id', emp.employee_id)
-            .maybeSingle();
-          
-          if (existing) {
-            await supabase.from('employees').update({
-              name: emp.name, email: emp.email || null, phone: emp.phone || null,
-              department: emp.department || null, password_hash: emp.password_hash,
+          await supabase.functions.invoke('manage-employees', {
+            body: {
+              action: 'sync',
+              employee_id: emp.employee_id,
+              name: emp.name,
+              email: emp.email || null,
+              phone: emp.phone || null,
+              department: emp.department || null,
+              password_hash: emp.password_hash,
               is_active: emp.is_active !== false,
-            }).eq('id', existing.id);
-          } else {
-            await supabase.from('employees').insert({
-              employee_id: emp.employee_id, name: emp.name, email: emp.email || null,
-              phone: emp.phone || null, department: emp.department || null,
-              password_hash: emp.password_hash, is_active: emp.is_active !== false,
-            });
-          }
+            },
+          });
           syncCount++;
         }
       }
@@ -214,20 +194,22 @@ const HR = () => {
       // Save to Firebase
       await addItem('employees', { ...rest, is_active: true, password_hash: password });
       
-      // Also sync to Supabase for employee-auth edge function
-      const { data: existingEmp } = await supabase.from('employees')
-        .select('id').eq('employee_id', formData.employee_id).maybeSingle();
-      if (existingEmp) {
-        await supabase.from('employees').update({
-          name: formData.name, email: formData.email || null, phone: formData.phone || null,
-          department: formData.department || null, password_hash: password, is_active: true,
-        }).eq('id', existingEmp.id);
-      } else {
-        await supabase.from('employees').insert({
-          employee_id: formData.employee_id, name: formData.name, email: formData.email || null,
-          phone: formData.phone || null, department: formData.department || null,
-          password_hash: password, is_active: true,
-        });
+      // Sync to Supabase via edge function (handles hashing)
+      const { data: result, error: fnError } = await supabase.functions.invoke('manage-employees', {
+        body: {
+          action: 'create',
+          employee_id: formData.employee_id,
+          password: formData.password,
+          name: formData.name,
+          email: formData.email || null,
+          phone: formData.phone || null,
+          department: null,
+        },
+      });
+      
+      if (fnError) {
+        console.error("Edge function error:", fnError);
+        toast.error("Employee created in Firebase but sync failed. Try 'Sync Employees'.");
       }
 
       toast.success("Employee created successfully! They can now login with their Employee ID and password.");
@@ -260,7 +242,7 @@ const HR = () => {
         name: formData.name,
         email: formData.email || null,
         phone: formData.phone || null,
-        department: formData.department || null,
+        department: null,
       };
 
       if (formData.password) {
@@ -268,6 +250,20 @@ const HR = () => {
       }
 
       await updateItem('employees', selectedEmployee!.id, updateData);
+
+      // Sync to Supabase via edge function
+      await supabase.functions.invoke('manage-employees', {
+        body: {
+          action: 'sync',
+          employee_id: selectedEmployee.employee_id,
+          name: formData.name,
+          email: formData.email || null,
+          phone: formData.phone || null,
+          department: null,
+          password_hash: formData.password || selectedEmployee.password_hash || '',
+          is_active: true,
+        },
+      });
 
       toast.success("Employee updated successfully");
       setEditDialogOpen(false);
