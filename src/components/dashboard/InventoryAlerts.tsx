@@ -1,59 +1,35 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Package, TrendingUp } from "lucide-react";
+import { AlertTriangle, Package, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMemo } from "react";
 
-interface Alert {
+interface Product {
   id: string;
-  type: "low-stock" | "reorder" | "trending";
-  title: string;
-  description: string;
-  priority: "high" | "medium" | "low";
+  name: string;
+  stock: number;
+  metal_type: string;
+  category: string;
 }
 
-const alerts: Alert[] = [
-  {
-    id: "1",
-    type: "low-stock",
-    title: "22K Gold Chains",
-    description: "Only 5 units remaining • Reorder recommended",
-    priority: "high",
-  },
-  {
-    id: "2",
-    type: "trending",
-    title: "Diamond Studs",
-    description: "High demand • 45% increase in sales this week",
-    priority: "medium",
-  },
-  {
-    id: "3",
-    type: "reorder",
-    title: "Silver Bangles",
-    description: "Stock depleted • Order placed with supplier",
-    priority: "low",
-  },
-  {
-    id: "4",
-    type: "low-stock",
-    title: "Platinum Rings",
-    description: "8 units left • Below safety stock level",
-    priority: "medium",
-  },
-];
+export function InventoryAlerts({ products }: { products: Product[] }) {
+  const alerts = useMemo(() => {
+    const items: { id: string; title: string; description: string; priority: "high" | "medium"; icon: typeof AlertTriangle }[] = [];
 
-const priorityStyles = {
-  high: "border-l-ruby bg-ruby/5",
-  medium: "border-l-primary bg-primary/5",
-  low: "border-l-silver bg-secondary/30",
-};
+    const outOfStock = products.filter(p => p.stock === 0);
+    outOfStock.forEach(p => {
+      items.push({ id: p.id + "-oos", title: p.name, description: `Out of stock • ${p.metal_type} ${p.category}`, priority: "high", icon: XCircle });
+    });
 
-const iconMap = {
-  "low-stock": AlertTriangle,
-  reorder: Package,
-  trending: TrendingUp,
-};
+    const lowStock = products.filter(p => p.stock > 0 && p.stock <= 5);
+    lowStock.forEach(p => {
+      items.push({ id: p.id + "-low", title: p.name, description: `Only ${p.stock} left • ${p.metal_type}`, priority: "medium", icon: AlertTriangle });
+    });
 
-export function InventoryAlerts() {
+    return items.slice(0, 5);
+  }, [products]);
+
+  const urgentCount = alerts.filter(a => a.priority === "high").length;
+
   return (
     <Card variant="elevated">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -62,44 +38,37 @@ export function InventoryAlerts() {
           Inventory Alerts
         </CardTitle>
         <span className="text-sm text-muted-foreground">
-          {alerts.filter((a) => a.priority === "high").length} urgent
+          {urgentCount} urgent
         </span>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="divide-y divide-border/30">
-          {alerts.map((alert, index) => {
-            const Icon = iconMap[alert.type];
-            return (
-              <div
-                key={alert.id}
-                className={cn(
-                  "p-4 border-l-4 hover:bg-secondary/20 transition-colors cursor-pointer animate-fade-in",
-                  priorityStyles[alert.priority]
-                )}
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <div className="flex items-start gap-3">
-                  <Icon
-                    className={cn(
-                      "w-5 h-5 mt-0.5",
-                      alert.priority === "high"
-                        ? "text-ruby"
-                        : alert.priority === "medium"
-                        ? "text-primary"
-                        : "text-muted-foreground"
-                    )}
-                  />
-                  <div>
-                    <p className="font-medium">{alert.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {alert.description}
-                    </p>
+        {alerts.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">All stock levels healthy! ✅</p>
+        ) : (
+          <div className="divide-y divide-border/30">
+            {alerts.map((alert, index) => {
+              const Icon = alert.icon;
+              return (
+                <div
+                  key={alert.id}
+                  className={cn(
+                    "p-4 border-l-4 hover:bg-secondary/20 transition-colors animate-fade-in",
+                    alert.priority === "high" ? "border-l-ruby bg-ruby/5" : "border-l-primary bg-primary/5"
+                  )}
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <div className="flex items-start gap-3">
+                    <Icon className={cn("w-5 h-5 mt-0.5", alert.priority === "high" ? "text-ruby" : "text-primary")} />
+                    <div>
+                      <p className="font-medium text-sm">{alert.title}</p>
+                      <p className="text-xs text-muted-foreground">{alert.description}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
