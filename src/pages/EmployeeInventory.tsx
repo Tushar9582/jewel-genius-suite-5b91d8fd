@@ -38,12 +38,16 @@ const EmployeeInventory = () => {
       p.barcode?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesMetal =
       metalFilter === "all" ||
-      p.metal_type?.toLowerCase().includes(metalFilter.toLowerCase());
+      (metalFilter === "Gold" && p.metal_type?.toLowerCase().includes("gold")) ||
+      (metalFilter === "Silver" && p.metal_type?.toLowerCase().includes("silver")) ||
+      (metalFilter === "Diamond" && p.metal_type?.toLowerCase().includes("diamond")) ||
+      (metalFilter === "Platinum" && p.metal_type?.toLowerCase().includes("platinum"));
     return matchesSearch && matchesMetal;
   });
 
   const stats = {
     totalProducts: products.length,
+    totalValue: products.reduce((acc, p) => acc + (p.unit_price || 0) * (p.stock || 0), 0),
     inStock: products.filter((p) => (p.stock || 0) > 0).length,
     lowStock: products.filter((p) => p.status === "Low Stock").length,
     outOfStock: products.filter((p) => p.status === "Out of Stock").length,
@@ -76,20 +80,20 @@ const EmployeeInventory = () => {
           </Card>
           <Card variant="stat">
             <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+              <p className="text-xs sm:text-sm text-muted-foreground">Selling Value</p>
+              <p className="text-xl sm:text-2xl font-bold">{isLoading ? "—" : formatCurrency(stats.totalValue)}</p>
+            </CardContent>
+          </Card>
+          <Card variant="stat">
+            <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
               <p className="text-xs sm:text-sm text-muted-foreground">In Stock</p>
               <p className="text-xl sm:text-2xl font-bold">{isLoading ? "—" : stats.inStock}</p>
             </CardContent>
           </Card>
           <Card variant="stat">
             <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
-              <p className="text-xs sm:text-sm text-muted-foreground">Low Stock</p>
-              <p className="text-xl sm:text-2xl font-bold text-amber-500">{isLoading ? "—" : stats.lowStock}</p>
-            </CardContent>
-          </Card>
-          <Card variant="stat">
-            <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
-              <p className="text-xs sm:text-sm text-muted-foreground">Out of Stock</p>
-              <p className="text-xl sm:text-2xl font-bold text-destructive">{isLoading ? "—" : stats.outOfStock}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Low / Out</p>
+              <p className="text-xl sm:text-2xl font-bold text-destructive">{isLoading ? "—" : `${stats.lowStock} / ${stats.outOfStock}`}</p>
             </CardContent>
           </Card>
         </div>
@@ -105,7 +109,7 @@ const EmployeeInventory = () => {
                 <div className="relative flex-1 sm:flex-none">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search products..."
+                    placeholder="Search or scan barcode..."
                     className="pl-10 w-full sm:w-48 md:w-64"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -140,20 +144,20 @@ const EmployeeInventory = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="whitespace-nowrap">Barcode / SKU</TableHead>
+                    <TableHead className="whitespace-nowrap">Barcode</TableHead>
                     <TableHead className="whitespace-nowrap">Product Name</TableHead>
                     <TableHead className="hidden md:table-cell">Category</TableHead>
                     <TableHead className="hidden lg:table-cell">Metal</TableHead>
                     <TableHead className="hidden sm:table-cell">Weight</TableHead>
                     <TableHead>Stock</TableHead>
-                    <TableHead>Selling Price</TableHead>
+                    <TableHead>Selling ₹</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredProducts.map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/50">
-                      <TableCell>
+                      <TableCell className="font-mono text-xs">
                         <Badge variant="outline" className="font-mono text-[10px] px-1.5 border-primary/30">
                           {item.barcode || item.sku}
                         </Badge>
@@ -164,7 +168,7 @@ const EmployeeInventory = () => {
                       <TableCell className="hidden sm:table-cell text-sm">{item.weight}g</TableCell>
                       <TableCell className="text-sm font-medium">{item.stock}</TableCell>
                       <TableCell className="font-semibold text-sm text-primary">
-                        {formatCurrency(item.unit_price || 0)}
+                        ₹{(item.unit_price || 0).toLocaleString()}
                       </TableCell>
                       <TableCell>
                         <Badge
