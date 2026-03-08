@@ -63,15 +63,6 @@ interface Employee {
   updated_at: string;
 }
 
-const departments = [
-  "Sales",
-  "Operations",
-  "Production",
-  "Finance",
-  "Marketing",
-  "HR",
-  "IT",
-];
 
 const HR = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -405,10 +396,10 @@ const HR = () => {
           <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
             <div className="flex items-center gap-1 sm:gap-2">
               <Star className="w-3 h-3 sm:w-4 sm:h-4 text-primary shrink-0" />
-              <p className="text-xs sm:text-sm text-muted-foreground truncate">Departments</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">Inactive</p>
             </div>
             <p className="text-xl sm:text-2xl font-bold">
-              {loading ? '-' : new Set(employees.filter(e => e.department).map(e => e.department)).size}
+              {loading ? '-' : employees.filter(e => !e.is_active).length}
             </p>
           </CardContent>
         </Card>
@@ -480,7 +471,7 @@ const HR = () => {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm sm:text-base truncate">{emp.name}</p>
                       <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                        Login ID: <span className="font-mono font-medium text-foreground">{emp.employee_id}</span> • {emp.department || 'No Department'}
+                        Login ID: <span className="font-mono font-medium text-foreground">{emp.employee_id}</span>
                       </p>
                     </div>
                   </div>
@@ -590,22 +581,6 @@ const HR = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create_department">Department</Label>
-              <Select
-                value={formData.department}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, department: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="create_email">Email (optional)</Label>
               <Input
                 id="create_email"
@@ -679,22 +654,6 @@ const HR = () => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit_department">Department</Label>
-              <Select
-                value={formData.department}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, department: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_email">Email</Label>
