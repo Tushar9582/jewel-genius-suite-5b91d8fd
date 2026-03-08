@@ -148,7 +148,20 @@ const HR = () => {
     try {
       setSaving(true);
       const { password, ...rest } = formData;
+      
+      // Save to Firebase
       await addItem('employees', { ...rest, is_active: true, password_hash: password });
+      
+      // Also sync to Supabase for employee-auth edge function
+      await supabase.from('employees').upsert({
+        employee_id: formData.employee_id,
+        name: formData.name,
+        email: formData.email || null,
+        phone: formData.phone || null,
+        department: formData.department || null,
+        password_hash: password,
+        is_active: true,
+      }, { onConflict: 'employee_id' });
 
       toast.success("Employee created successfully! They can now login with their Employee ID and password.");
       setCreateDialogOpen(false);
