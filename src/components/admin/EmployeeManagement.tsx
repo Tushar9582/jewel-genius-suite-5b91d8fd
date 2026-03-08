@@ -181,6 +181,19 @@ export function EmployeeManagement() {
 
       await updateItem('employees', selectedEmployee!.id, updateData);
 
+      await supabase.functions.invoke('manage-employees', {
+        body: {
+          action: 'sync',
+          employee_id: selectedEmployee.employee_id,
+          name: formData.name,
+          email: formData.email || null,
+          phone: formData.phone || null,
+          department: formData.department || null,
+          password_hash: formData.password || (selectedEmployee as any).password_hash || '',
+          is_active: true,
+        },
+      });
+
       toast.success("Employee updated successfully");
       setEditDialogOpen(false);
       resetForm();
