@@ -480,7 +480,7 @@ const HR = () => {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm sm:text-base truncate">{emp.name}</p>
                       <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                        ID: {emp.employee_id} • {emp.department || 'No Department'}
+                        Login ID: <span className="font-mono font-medium text-foreground">{emp.employee_id}</span> • {emp.department || 'No Department'}
                       </p>
                     </div>
                   </div>
