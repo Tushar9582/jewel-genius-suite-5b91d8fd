@@ -109,6 +109,8 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (employeeId: string, password: string) => {
     try {
+      await ensureAuthForEmployeeLookup();
+
       // Find employee by employee_id
       const employeesRef = ref(db, 'employees');
       const snapshot = await get(employeesRef);
