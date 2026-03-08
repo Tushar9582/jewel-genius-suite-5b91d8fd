@@ -171,11 +171,12 @@ const Inventory = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
         <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Total Products</p><p className="text-xl sm:text-2xl font-bold text-primary">{stats.totalProducts}</p></CardContent></Card>
-        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Total Value</p><p className="text-xl sm:text-2xl font-bold">{formatCurrency(stats.totalValue)}</p></CardContent></Card>
-        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Low Stock</p><p className="text-xl sm:text-2xl font-bold text-yellow-500">{stats.lowStock}</p></CardContent></Card>
-        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Out of Stock</p><p className="text-xl sm:text-2xl font-bold text-destructive">{stats.outOfStock}</p></CardContent></Card>
+        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Selling Value</p><p className="text-xl sm:text-2xl font-bold">{formatCurrency(stats.totalValue)}</p></CardContent></Card>
+        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Cost Value</p><p className="text-xl sm:text-2xl font-bold text-muted-foreground">{formatCurrency(stats.totalCost)}</p></CardContent></Card>
+        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Profit Margin</p><p className="text-xl sm:text-2xl font-bold text-emerald-500">{formatCurrency(totalProfit)}</p></CardContent></Card>
+        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Low / Out</p><p className="text-xl sm:text-2xl font-bold text-destructive">{stats.lowStock} / {stats.outOfStock}</p></CardContent></Card>
       </div>
 
       <Card variant="elevated">
