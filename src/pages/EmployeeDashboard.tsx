@@ -28,7 +28,7 @@ const EmployeeDashboard = () => {
 
   const { data: products = [], isLoading: loadingProducts } = useQuery({
     queryKey: ["emp-dash-products"],
-    queryFn: () => getAll<Product>("products"),
+    queryFn: () => employeeGetAll<Product>("products"),
   });
 
   const { data: sales = [], isLoading: loadingSales } = useQuery({
