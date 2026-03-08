@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   ShoppingCart, Barcode, Search, Plus, Minus, Trash2,
-  CreditCard, Banknote, Smartphone, Loader2, Calculator, Gem,
+  CreditCard, Banknote, Smartphone, Loader2, Calculator, Gem, Zap,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GoldRateCalculator, type ProductForCalc, type CalcResult } from "@/components/pos/GoldRateCalculator";
@@ -16,6 +16,7 @@ import { getAll, addItem, updateItem } from "@/lib/firebaseDb";
 interface Product {
   id: string;
   sku: string;
+  barcode: string;
   name: string;
   category: string;
   metal_type: string;
@@ -33,7 +34,6 @@ interface CartItem {
   stock: number;
   qty: number;
   sku: string;
-  /** True if price came from gold calculator */
   calculatedPrice?: boolean;
   purity?: string;
 }
@@ -46,6 +46,10 @@ const POS = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
   const [calcProduct, setCalcProduct] = useState<ProductForCalc | null>(null);
+  const [scanMode, setScanMode] = useState(false);
+  const scanInputRef = useRef<HTMLInputElement>(null);
+  const scanBufferRef = useRef("");
+  const scanTimerRef = useRef<NodeJS.Timeout | null>(null);
   const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery({
@@ -55,6 +59,101 @@ const POS = () => {
       return all.filter((p) => p.stock > 0).sort((a, b) => a.name.localeCompare(b.name));
     },
   });
+
+  // Barcode scanner detection: scanners type fast then press Enter
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in other inputs
+      const active = document.activeElement;
+      const isScanInput = active === scanInputRef.current;
+      const isOtherInput = active instanceof HTMLInputElement && !isScanInput;
+      if (isOtherInput) return;
+
+      if (e.key === "Enter" && scanBufferRef.current.length >= 5) {
+        e.preventDefault();
+        const scannedCode = scanBufferRef.current.trim();
+        scanBufferRef.current = "";
+        handleBarcodeScan(scannedCode);
+        return;
+      }
+
+      if (e.key.length === 1) {
+        scanBufferRef.current += e.key;
+        if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
+        scanTimerRef.current = setTimeout(() => {
+          scanBufferRef.current = "";
+        }, 100); // Scanner types within 100ms
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [products, cart]);
+
+  const handleBarcodeScan = useCallback(
+    (code: string) => {
+      const product = products.find(
+        (p) =>
+          p.barcode?.toLowerCase() === code.toLowerCase() ||
+          p.sku?.toLowerCase() === code.toLowerCase()
+      );
+
+      if (!product) {
+        toast.error(`Product not found: ${code}`);
+        return;
+      }
+
+      // Gold products go to calculator, others direct to cart
+      if (isGoldProduct(product)) {
+        sendToCalculator(product);
+        toast.success(`🔊 Scanned: ${product.name} → Calculator`);
+      } else {
+        addToCart(product);
+        toast.success(`🔊 Scanned: ${product.name} → Added to Bill`);
+      }
+
+      // Clear search
+      setSearchQuery("");
+    },
+    [products, cart]
+  );
+
+  // Manual search + enter to scan
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && searchQuery.trim().length >= 3) {
+      // Try exact barcode match first
+      const product = products.find(
+        (p) =>
+          p.barcode?.toLowerCase() === searchQuery.trim().toLowerCase() ||
+          p.sku?.toLowerCase() === searchQuery.trim().toLowerCase()
+      );
+      if (product) {
+        e.preventDefault();
+        if (isGoldProduct(product)) {
+          sendToCalculator(product);
+        } else {
+          addToCart(product);
+        }
+        setSearchQuery("");
+        return;
+      }
+      // If only one filtered result, add that
+      const filtered = products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.barcode?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      if (filtered.length === 1) {
+        if (isGoldProduct(filtered[0])) {
+          sendToCalculator(filtered[0]);
+        } else {
+          addToCart(filtered[0]);
+        }
+        setSearchQuery("");
+      }
+    }
+  };
 
   const completeSaleMutation = useMutation({
     mutationFn: async () => {
@@ -82,7 +181,9 @@ const POS = () => {
       });
 
       for (const item of cart) {
-        await updateItem("products", item.id, { stock: item.stock - item.qty });
+        if (!item.id.startsWith("calc-")) {
+          await updateItem("products", item.id, { stock: item.stock - item.qty });
+        }
       }
 
       return invoiceNumber;
@@ -99,7 +200,6 @@ const POS = () => {
     },
   });
 
-  // Add product directly with inventory price (non-gold items)
   const addToCart = (product: Product) => {
     const existing = cart.find((item) => item.id === product.id);
     if (existing) {
@@ -125,12 +225,10 @@ const POS = () => {
     toast.success(`${product.name} added to cart`);
   };
 
-  // Add from calculator with computed gold price
   const handleCalcAddToCart = useCallback(
     (result: CalcResult) => {
       const product = products.find((p) => p.id === result.productId);
-      
-      // For inventory-linked products
+
       if (product) {
         const existing = cart.find((item) => item.id === product.id);
         if (existing) {
@@ -162,7 +260,6 @@ const POS = () => {
           ]);
         }
       } else {
-        // For custom/manual calculator items (not linked to inventory)
         const customId = `calc-${Date.now()}`;
         setCart([
           ...cart,
@@ -171,7 +268,7 @@ const POS = () => {
             name: result.productName,
             weight: result.weight,
             unit_price: result.calculatedPrice,
-            stock: 9999, // no stock limit for custom
+            stock: 9999,
             qty: 1,
             sku: "CUSTOM",
             calculatedPrice: true,
@@ -184,7 +281,6 @@ const POS = () => {
     [cart, products]
   );
 
-  // Send gold product to calculator
   const sendToCalculator = (product: Product) => {
     setCalcProduct({
       id: product.id,
@@ -227,7 +323,8 @@ const POS = () => {
   const filteredProducts = products.filter(
     (p) =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchQuery.toLowerCase())
+      p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
@@ -237,19 +334,22 @@ const POS = () => {
           <span className="text-gradient-gold">POS</span> & Sales
         </h1>
         <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-          Process sales, scan items, and manage transactions
+          Scan barcode to instantly add to bill • Gold items → Calculator → Bill
         </p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
-        {/* Left: Products + Cart */}
         <div className="xl:col-span-2 space-y-4 sm:space-y-6">
-          {/* Product Search */}
+          {/* Scanner / Search */}
           <Card variant="elevated">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Barcode className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                Scan / Search Products
+                Scan Barcode / Search Products
+                <Badge variant="secondary" className="text-[10px] ml-auto">
+                  <Zap className="w-3 h-3 mr-1" />
+                  Auto-detect scanner
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -257,10 +357,13 @@ const POS = () => {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    placeholder="Scan barcode or search..."
+                    ref={scanInputRef}
+                    placeholder="Scan barcode or type product name & press Enter..."
                     className="pl-10"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                    autoFocus
                   />
                 </div>
               </div>
@@ -295,7 +398,7 @@ const POS = () => {
                               )}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {product.sku} • {product.weight}g • Stock: {product.stock}
+                              <span className="font-mono">{product.barcode || product.sku}</span> • {product.weight}g • Stock: {product.stock}
                             </p>
                           </div>
                         </div>
@@ -333,9 +436,9 @@ const POS = () => {
             <CardContent>
               {cart.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8 text-sm">
-                  Cart is empty. Search products above to add items.
+                  Cart is empty. Scan barcode or search products to add.
                   <br />
-                  <span className="text-xs">Gold items → Calculator • Other items → Direct add</span>
+                  <span className="text-xs">🔊 Barcode scanner auto-detected • Gold → Calculator • Others → Direct add</span>
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -394,7 +497,6 @@ const POS = () => {
 
         {/* Right: Calculator + Payment */}
         <div className="space-y-4 sm:space-y-6">
-          {/* Gold Rate Calculator */}
           <Card variant="elevated">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -411,7 +513,6 @@ const POS = () => {
             </CardContent>
           </Card>
 
-          {/* Payment Summary */}
           <Card variant="gold">
             <CardHeader className="pb-3 sm:pb-4">
               <CardTitle className="text-base sm:text-lg">Payment Summary</CardTitle>

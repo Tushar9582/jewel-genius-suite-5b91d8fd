@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Package, Search, Plus, Filter, Download, ArrowUpDown, Loader2 } from "lucide-react";
+import { Package, Search, Plus, Filter, Download, ArrowUpDown, Loader2, QrCode, Printer } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,10 +12,12 @@ import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getAll, addItem } from "@/lib/firebaseDb";
+import { ProductBarcodeDialog, generateBarcode } from "@/components/inventory/ProductBarcode";
 
 interface Product {
   id: string;
   sku: string;
+  barcode: string;
   name: string;
   category: string;
   metal_type: string;
@@ -28,6 +30,7 @@ interface Product {
 const Inventory = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "",
   });
@@ -57,17 +60,20 @@ const Inventory = () => {
     e.preventDefault();
     const stock = parseInt(formData.stock);
     const status = stock === 0 ? "Out of Stock" : stock <= 5 ? "Low Stock" : "In Stock";
-    // Auto-generate SKU from metal type + timestamp
+    const barcode = generateBarcode(formData.metal_type);
     const metalPrefix = formData.metal_type.replace(/\s/g, "").substring(0, 3).toUpperCase();
     const sku = `${metalPrefix}-${Date.now().toString(36).toUpperCase()}`;
     addProductMutation.mutate({
-      sku, name: formData.name, category: formData.category, metal_type: formData.metal_type,
+      sku, barcode, name: formData.name, category: formData.category, metal_type: formData.metal_type,
       weight: parseFloat(formData.weight), stock, unit_price: parseFloat(formData.unit_price), status,
     });
   };
 
   const filteredProducts = products.filter(
-    (p) => p.name?.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku?.toLowerCase().includes(searchQuery.toLowerCase())
+    (p) =>
+      p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.barcode?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const stats = {
@@ -112,6 +118,10 @@ const Inventory = () => {
                   <div className="space-y-2"><Label htmlFor="stock">Stock</Label><Input id="stock" type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} placeholder="10" required /></div>
                   <div className="space-y-2"><Label htmlFor="price">Price (₹)</Label><Input id="price" type="number" value={formData.unit_price} onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })} placeholder="50000" required /></div>
                 </div>
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 flex items-center gap-2">
+                  <QrCode className="w-4 h-4 text-primary shrink-0" />
+                  <p className="text-xs text-muted-foreground">Unique barcode will be auto-generated for this product</p>
+                </div>
                 <Button type="submit" variant="gold" className="w-full" disabled={addProductMutation.isPending}>
                   {addProductMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Add Product
                 </Button>
@@ -133,7 +143,7 @@ const Inventory = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg"><Package className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />All Products</CardTitle>
             <div className="flex items-center gap-2">
-              <div className="relative flex-1 sm:flex-none"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Search..." className="pl-10 w-full sm:w-48 md:w-64" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
+              <div className="relative flex-1 sm:flex-none"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Search or scan barcode..." className="pl-10 w-full sm:w-48 md:w-64" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
               <Button variant="outline" size="icon" className="shrink-0 h-9 w-9 sm:h-10 sm:w-10"><Filter className="w-4 h-4" /></Button>
               <Button variant="outline" size="icon" className="shrink-0 h-9 w-9 sm:h-10 sm:w-10"><Download className="w-4 h-4" /></Button>
             </div>
@@ -147,7 +157,7 @@ const Inventory = () => {
           ) : (
             <Table>
               <TableHeader><TableRow>
-                <TableHead className="cursor-pointer hover:text-primary whitespace-nowrap">SKU <ArrowUpDown className="inline w-3 h-3 ml-1" /></TableHead>
+                <TableHead className="whitespace-nowrap">Barcode</TableHead>
                 <TableHead className="whitespace-nowrap">Product Name</TableHead>
                 <TableHead className="hidden md:table-cell">Category</TableHead>
                 <TableHead className="hidden lg:table-cell">Metal</TableHead>
@@ -155,11 +165,16 @@ const Inventory = () => {
                 <TableHead>Stock</TableHead>
                 <TableHead className="hidden sm:table-cell">Price</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-center">Print</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {filteredProducts.map((item) => (
                   <TableRow key={item.id} className="cursor-pointer hover:bg-muted/50">
-                    <TableCell className="font-mono text-xs sm:text-sm">{item.sku}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      <Badge variant="outline" className="font-mono text-[10px] px-1.5 border-primary/30">
+                        {item.barcode || item.sku}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="font-medium text-sm max-w-[150px] truncate">{item.name}</TableCell>
                     <TableCell className="hidden md:table-cell text-sm">{item.category}</TableCell>
                     <TableCell className="hidden lg:table-cell text-sm">{item.metal_type}</TableCell>
@@ -169,6 +184,16 @@ const Inventory = () => {
                     <TableCell>
                       <Badge variant={item.status === "In Stock" ? "default" : item.status === "Low Stock" ? "secondary" : "destructive"} className="text-xs whitespace-nowrap">{item.status}</Badge>
                     </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-primary hover:text-primary"
+                        onClick={(e) => { e.stopPropagation(); setBarcodeProduct(item); }}
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -176,6 +201,19 @@ const Inventory = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Barcode Dialog */}
+      {barcodeProduct && (
+        <ProductBarcodeDialog
+          barcode={barcodeProduct.barcode || barcodeProduct.sku}
+          productName={barcodeProduct.name}
+          metalType={barcodeProduct.metal_type}
+          weight={barcodeProduct.weight}
+          price={barcodeProduct.unit_price}
+          open={!!barcodeProduct}
+          onOpenChange={(open) => !open && setBarcodeProduct(null)}
+        />
+      )}
     </DashboardLayout>
   );
 };
