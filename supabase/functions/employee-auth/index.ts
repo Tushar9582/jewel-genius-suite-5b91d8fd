@@ -4,7 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // Generate a secure session token
@@ -68,9 +68,14 @@ serve(async (req) => {
         );
       }
 
-      // Verify password - compare plain text directly with stored password_hash
-      // (passwords are stored as plain text from the HR panel)
-      if (employee.password_hash !== password) {
+      // Verify password - hash incoming password and compare with stored hash
+      const encoder = new TextEncoder();
+      const data = encoder.encode(password);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+
+      if (employee.password_hash !== hashedPassword && employee.password_hash !== password) {
         return new Response(
           JSON.stringify({ error: "Invalid credentials" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
