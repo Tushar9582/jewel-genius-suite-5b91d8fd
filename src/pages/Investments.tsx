@@ -24,12 +24,6 @@ interface Investment {
   status: string;
 }
 
-const metalPrices = [
-  { metal: "Gold 24K", price: "₹7,250/g", change: "+1.2%", positive: true },
-  { metal: "Gold 22K", price: "₹6,640/g", change: "+1.1%", positive: true },
-  { metal: "Silver", price: "₹85/g", change: "-0.5%", positive: false },
-  { metal: "Platinum", price: "₹3,120/g", change: "+0.8%", positive: true },
-];
 
 const Investments = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
