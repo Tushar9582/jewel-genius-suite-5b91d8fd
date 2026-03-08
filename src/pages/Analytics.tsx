@@ -545,7 +545,7 @@ const Analytics = () => {
                       <div key={inv.id} className="flex items-center justify-between text-sm">
                         <div>
                           <p className="font-medium">{inv.customer_name}</p>
-                          <p className="text-xs text-muted-foreground">{inv.metal_type} • {inv.quantity}</p>
+                          <p className="text-xs text-muted-foreground">{inv.metal_type}</p>
                         </div>
                         <div className="text-right">
                           <p className="font-medium">{formatCurrency(Number(inv.current_value))}</p>
