@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Coins, BarChart3, Wallet, ArrowUpRight, ArrowDownRight, Plus, Loader2 } from "lucide-react";
+import { Coins, Wallet, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getAll, addItem } from "@/lib/firebaseDb";
+import { MetalPriceCard } from "@/components/dashboard/MetalPriceCard";
 
 interface Investment {
   id: string;
@@ -23,12 +24,6 @@ interface Investment {
   status: string;
 }
 
-const metalPrices = [
-  { metal: "Gold 24K", price: "₹7,250/g", change: "+1.2%", positive: true },
-  { metal: "Gold 22K", price: "₹6,640/g", change: "+1.1%", positive: true },
-  { metal: "Silver", price: "₹85/g", change: "-0.5%", positive: false },
-  { metal: "Platinum", price: "₹3,120/g", change: "+0.8%", positive: true },
-];
 
 const Investments = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -147,21 +142,7 @@ const Investments = () => {
           </Card>
         </div>
 
-        <Card variant="gold">
-          <CardHeader className="pb-3 sm:pb-4"><CardTitle className="flex items-center gap-2 text-base sm:text-lg"><BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />Live Metal Prices</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-3 sm:space-y-4">
-              {metalPrices.map((metal) => (
-                <div key={metal.metal} className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg bg-background/50">
-                  <div><p className="font-medium text-sm sm:text-base">{metal.metal}</p><p className="text-base sm:text-lg font-bold">{metal.price}</p></div>
-                  <Badge variant={metal.positive ? "default" : "destructive"} className="flex items-center gap-1 text-xs">
-                    {metal.positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}{metal.change}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <MetalPriceCard />
       </div>
     </DashboardLayout>
   );
