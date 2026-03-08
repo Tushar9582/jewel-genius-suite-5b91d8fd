@@ -30,6 +30,7 @@ interface Product {
 const Inventory = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [metalFilter, setMetalFilter] = useState<string>("all");
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "",
