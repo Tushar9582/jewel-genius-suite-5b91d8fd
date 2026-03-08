@@ -204,7 +204,11 @@ export function GoldRateCalculator({
         makingCharges: res.makingTotal,
         gst: res.gst,
       });
-      toast.success("Added to cart with calculated price!");
+      // Remove item from calculator after adding to bill
+      setItems((prev) => {
+        const remaining = prev.filter((i) => i.id !== item.id);
+        return remaining.length === 0 ? [defaultItem()] : remaining;
+      });
     },
     [onAddToCart]
   );
