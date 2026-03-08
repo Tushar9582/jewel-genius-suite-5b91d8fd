@@ -140,9 +140,11 @@ const Inventory = () => {
   const stats = {
     totalProducts: products.length,
     totalValue: products.reduce((acc, p) => acc + (p.unit_price || 0) * (p.stock || 0), 0),
+    totalCost: products.reduce((acc, p) => acc + (p.purchase_price || 0) * (p.stock || 0), 0),
     lowStock: products.filter((p) => p.status === "Low Stock").length,
     outOfStock: products.filter((p) => p.status === "Out of Stock").length,
   };
+  const totalProfit = stats.totalValue - stats.totalCost;
 
   const formatCurrency = (value: number) => {
     if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
