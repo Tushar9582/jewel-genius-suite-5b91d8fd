@@ -63,15 +63,6 @@ interface Employee {
   updated_at: string;
 }
 
-const departments = [
-  "Sales",
-  "Operations",
-  "Production",
-  "Finance",
-  "Marketing",
-  "HR",
-  "IT",
-];
 
 const HR = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
