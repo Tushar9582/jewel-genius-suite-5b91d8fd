@@ -29,7 +29,7 @@ const Inventory = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({
-    sku: "", name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "",
+    name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "",
   });
   const queryClient = useQueryClient();
 
