@@ -73,33 +73,13 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      await ensureAuthForEmployeeLookup();
-
-      // Fetch employee data directly
-      const empRef = ref(db, `employees/${sessionData.employee_id}`);
-      const empSnapshot = await get(empRef);
-
-      if (!empSnapshot.exists()) {
-        localStorage.removeItem(SESSION_KEY);
-        setEmployee(null);
-        setLoading(false);
-        return;
-      }
-
-      const empData = empSnapshot.val();
-      if (empData?.is_active === false) {
-        localStorage.removeItem(SESSION_KEY);
-        setEmployee(null);
-        setLoading(false);
-        return;
-      }
-
+      // Restore session from local storage payload (no DB read needed)
       setEmployee({
         id: sessionData.employee_id,
-        employee_id: empData.employee_id,
-        name: empData.name,
-        email: empData.email || null,
-        department: empData.department || null,
+        employee_id: sessionData.employee_id,
+        name: sessionData.name,
+        email: sessionData.email,
+        department: sessionData.department,
       });
     } catch (error) {
       console.error('Session validation error:', error);
