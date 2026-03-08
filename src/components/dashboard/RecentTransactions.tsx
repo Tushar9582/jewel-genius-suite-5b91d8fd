@@ -1,141 +1,83 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
-interface Transaction {
+interface Sale {
   id: string;
-  type: "sale" | "purchase" | "return";
-  customer: string;
-  item: string;
-  amount: string;
-  time: string;
-  status: "completed" | "pending" | "processing";
+  total: number;
+  created_at: string;
+  payment_method: string;
+  customer_name: string | null;
+  invoice_number: string;
+  status: string;
 }
 
-const transactions: Transaction[] = [
-  {
-    id: "TXN001",
-    type: "sale",
-    customer: "Priya Sharma",
-    item: "22K Gold Necklace Set",
-    amount: "₹2,45,800",
-    time: "10 mins ago",
-    status: "completed",
-  },
-  {
-    id: "TXN002",
-    type: "sale",
-    customer: "Amit Patel",
-    item: "Diamond Engagement Ring",
-    amount: "₹1,85,000",
-    time: "25 mins ago",
-    status: "completed",
-  },
-  {
-    id: "TXN003",
-    type: "purchase",
-    customer: "Gold Supplier Co.",
-    item: "24K Gold Bars (100g)",
-    amount: "₹6,28,500",
-    time: "1 hour ago",
-    status: "processing",
-  },
-  {
-    id: "TXN004",
-    type: "sale",
-    customer: "Neha Gupta",
-    item: "Platinum Bangles Set",
-    amount: "₹95,400",
-    time: "2 hours ago",
-    status: "completed",
-  },
-  {
-    id: "TXN005",
-    type: "return",
-    customer: "Rahul Mehta",
-    item: "Silver Anklet",
-    amount: "₹8,500",
-    time: "3 hours ago",
-    status: "pending",
-  },
-];
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
 
-export function RecentTransactions() {
+export function RecentTransactions({ sales }: { sales: Sale[] }) {
+  const navigate = useNavigate();
+  const recent = [...sales]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 6);
+
   return (
     <Card variant="elevated">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-lg">Recent Transactions</CardTitle>
-        <button className="text-sm text-primary hover:underline">
-          View All
-        </button>
+        <button onClick={() => navigate("/analytics")} className="text-sm text-primary hover:underline">View All</button>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="divide-y divide-border/30">
-          {transactions.map((txn, index) => (
-            <div
-              key={txn.id}
-              className="flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors animate-fade-in"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <div className="flex items-center gap-4">
-                <div
-                  className={cn(
-                    "p-2 rounded-xl",
-                    txn.type === "sale"
-                      ? "bg-emerald/10 text-emerald"
-                      : txn.type === "purchase"
-                      ? "bg-primary/10 text-primary"
-                      : "bg-ruby/10 text-ruby"
-                  )}
-                >
-                  {txn.type === "sale" || txn.type === "return" ? (
+        {recent.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">No sales yet. Start selling from POS!</p>
+        ) : (
+          <div className="divide-y divide-border/30">
+            {recent.map((sale, index) => (
+              <div
+                key={sale.id}
+                className="flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-2 rounded-xl bg-emerald/10 text-emerald">
                     <ArrowUpRight className="w-4 h-4" />
-                  ) : (
-                    <ArrowDownLeft className="w-4 h-4" />
-                  )}
+                  </div>
+                  <div>
+                    <p className="font-medium">{sale.customer_name || "Walk-in Customer"}</p>
+                    <p className="text-sm text-muted-foreground">{sale.invoice_number} • {sale.payment_method}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium">{txn.customer}</p>
-                  <p className="text-sm text-muted-foreground">{txn.item}</p>
-                </div>
-              </div>
-              <div className="text-right flex items-center gap-4">
-                <div>
-                  <p
+                <div className="text-right flex items-center gap-3">
+                  <div>
+                    <p className="font-semibold text-emerald">
+                      +₹{Number(sale.total).toLocaleString("en-IN")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{timeAgo(sale.created_at)}</p>
+                  </div>
+                  <Badge
+                    variant="default"
                     className={cn(
-                      "font-semibold",
-                      txn.type === "sale"
-                        ? "text-emerald"
-                        : txn.type === "purchase"
-                        ? "text-primary"
-                        : "text-ruby"
+                      "text-xs",
+                      sale.status === "Completed" && "bg-emerald/20 text-emerald border-emerald/30"
                     )}
                   >
-                    {txn.type === "purchase" ? "-" : "+"}
-                    {txn.amount}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{txn.time}</p>
+                    {sale.status}
+                  </Badge>
                 </div>
-                <Badge
-                  variant={
-                    txn.status === "completed"
-                      ? "default"
-                      : txn.status === "processing"
-                      ? "secondary"
-                      : "outline"
-                  }
-                  className={cn(
-                    "text-xs",
-                    txn.status === "completed" && "bg-emerald/20 text-emerald border-emerald/30"
-                  )}
-                >
-                  {txn.status}
-                </Badge>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
