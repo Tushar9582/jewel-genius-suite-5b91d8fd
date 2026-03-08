@@ -211,6 +211,19 @@ export function EmployeeManagement() {
     try {
       await updateItem('employees', employee.id, { is_active: !employee.is_active });
 
+      await supabase.functions.invoke('manage-employees', {
+        body: {
+          action: 'sync',
+          employee_id: employee.employee_id,
+          name: employee.name,
+          email: employee.email || null,
+          phone: employee.phone || null,
+          department: employee.department || null,
+          password_hash: (employee as any).password_hash || '',
+          is_active: !employee.is_active,
+        },
+      });
+
       toast.success(`Employee ${employee.is_active ? 'deactivated' : 'activated'} successfully`);
       fetchEmployees();
     } catch (error: any) {
