@@ -125,20 +125,21 @@ export function EmployeeManagement() {
       // Save to Firebase
       await addItem('employees', { ...rest, is_active: true, password_hash: password });
       
-      // Also sync to Supabase for employee-auth edge function
-      const { data: existingEmp } = await supabase.from('employees')
-        .select('id').eq('employee_id', formData.employee_id).maybeSingle();
-      if (existingEmp) {
-        await supabase.from('employees').update({
-          name: formData.name, email: formData.email || null, phone: formData.phone || null,
-          department: formData.department || null, password_hash: password, is_active: true,
-        }).eq('id', existingEmp.id);
-      } else {
-        await supabase.from('employees').insert({
-          employee_id: formData.employee_id, name: formData.name, email: formData.email || null,
-          phone: formData.phone || null, department: formData.department || null,
-          password_hash: password, is_active: true,
-        });
+      // Sync to backend employee auth store
+      const { error: syncError } = await supabase.functions.invoke('manage-employees', {
+        body: {
+          action: 'create',
+          employee_id: formData.employee_id,
+          password: formData.password,
+          name: formData.name,
+          email: formData.email || null,
+          phone: formData.phone || null,
+          department: formData.department || null,
+        },
+      });
+
+      if (syncError) {
+        toast.error('Employee created in Firebase but backend sync failed');
       }
 
       toast.success("Employee created successfully");
