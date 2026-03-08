@@ -11,7 +11,8 @@ interface Product {
   category: string;
 }
 
-export function InventoryAlerts({ products }: { products: Product[] }) {
+export function InventoryAlerts({ products = [] }: { products?: Product[] }) {
+  const safeProducts = Array.isArray(products) ? products : [];
   const alerts = useMemo(() => {
     const items: { id: string; title: string; description: string; priority: "high" | "medium"; icon: typeof AlertTriangle }[] = [];
 
