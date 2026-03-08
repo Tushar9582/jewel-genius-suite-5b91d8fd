@@ -396,10 +396,10 @@ const HR = () => {
           <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
             <div className="flex items-center gap-1 sm:gap-2">
               <Star className="w-3 h-3 sm:w-4 sm:h-4 text-primary shrink-0" />
-              <p className="text-xs sm:text-sm text-muted-foreground truncate">Departments</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">Inactive</p>
             </div>
             <p className="text-xl sm:text-2xl font-bold">
-              {loading ? '-' : new Set(employees.filter(e => e.department).map(e => e.department)).size}
+              {loading ? '-' : employees.filter(e => !e.is_active).length}
             </p>
           </CardContent>
         </Card>
