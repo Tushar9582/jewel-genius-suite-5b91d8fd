@@ -25,6 +25,9 @@ const SESSION_KEY = 'employee_session_token';
 
 type LocalEmployeeSession = {
   employee_id: string;
+  name: string;
+  email: string | null;
+  department: string | null;
   expires_at: string;
 };
 
