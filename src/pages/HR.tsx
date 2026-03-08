@@ -46,6 +46,7 @@ import {
   UserCheck,
   UserX,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -57,6 +58,7 @@ interface Employee {
   phone: string | null;
   department: string | null;
   is_active: boolean;
+  password_hash?: string;
   created_at: string;
   updated_at: string;
 }
@@ -79,6 +81,7 @@ const HR = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -151,6 +154,42 @@ const HR = () => {
       toast.error("Failed to fetch employees");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const syncEmployeesToSupabase = async () => {
+    try {
+      setSyncing(true);
+      let syncCount = 0;
+      for (const emp of employees) {
+        if (emp.employee_id && emp.password_hash) {
+          const { data: existing } = await supabase.from('employees')
+            .select('id')
+            .eq('employee_id', emp.employee_id)
+            .maybeSingle();
+          
+          if (existing) {
+            await supabase.from('employees').update({
+              name: emp.name, email: emp.email || null, phone: emp.phone || null,
+              department: emp.department || null, password_hash: emp.password_hash,
+              is_active: emp.is_active !== false,
+            }).eq('id', existing.id);
+          } else {
+            await supabase.from('employees').insert({
+              employee_id: emp.employee_id, name: emp.name, email: emp.email || null,
+              phone: emp.phone || null, department: emp.department || null,
+              password_hash: emp.password_hash, is_active: emp.is_active !== false,
+            });
+          }
+          syncCount++;
+        }
+      }
+      toast.success(`Synced ${syncCount} employee(s) successfully`);
+    } catch (error: any) {
+      console.error("Sync error:", error);
+      toast.error("Failed to sync employees");
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -378,10 +417,21 @@ const HR = () => {
       {/* Employee List */}
       <Card variant="elevated">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <UserCog className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-            All Employees
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <UserCog className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+              All Employees
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={syncEmployeesToSupabase}
+              disabled={syncing || employees.length === 0}
+            >
+              {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              Sync Employees
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
