@@ -56,7 +56,7 @@ const EmployeePOS = () => {
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["emp-pos-products"],
     queryFn: async () => {
-      const all = await getAll<Product>("products");
+      const all = await employeeGetAll<Product>("products");
       return all.filter((p) => p.stock > 0).sort((a, b) => a.name.localeCompare(b.name));
     },
   });
