@@ -22,6 +22,11 @@ const EmployeeAuthContext = createContext<EmployeeAuthContextType | undefined>(u
 
 const SESSION_KEY = 'employee_session_token';
 
+type LocalEmployeeSession = {
+  employee_id: string;
+  expires_at: string;
+};
+
 export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,38 +36,55 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const validateSession = async () => {
-    const sessionToken = localStorage.getItem(SESSION_KEY);
-    if (!sessionToken) {
+    const sessionRaw = localStorage.getItem(SESSION_KEY);
+    if (!sessionRaw) {
       setLoading(false);
       return;
     }
 
     try {
-      const sessionRef = ref(db, `employee_sessions/${sessionToken}`);
-      const snapshot = await get(sessionRef);
-      
-      if (!snapshot.exists()) {
+      const sessionData = JSON.parse(sessionRaw) as LocalEmployeeSession;
+
+      if (!sessionData.employee_id || !sessionData.expires_at) {
         localStorage.removeItem(SESSION_KEY);
         setEmployee(null);
         setLoading(false);
         return;
       }
 
-      const sessionData = snapshot.val();
       if (new Date(sessionData.expires_at) < new Date()) {
-        await remove(sessionRef);
         localStorage.removeItem(SESSION_KEY);
         setEmployee(null);
         setLoading(false);
         return;
       }
 
-      // Fetch employee data
+      // Fetch employee data directly
       const empRef = ref(db, `employees/${sessionData.employee_id}`);
       const empSnapshot = await get(empRef);
-      if (empSnapshot.exists()) {
-        setEmployee({ id: sessionData.employee_id, ...empSnapshot.val() });
+
+      if (!empSnapshot.exists()) {
+        localStorage.removeItem(SESSION_KEY);
+        setEmployee(null);
+        setLoading(false);
+        return;
       }
+
+      const empData = empSnapshot.val();
+      if (empData?.is_active === false) {
+        localStorage.removeItem(SESSION_KEY);
+        setEmployee(null);
+        setLoading(false);
+        return;
+      }
+
+      setEmployee({
+        id: sessionData.employee_id,
+        employee_id: empData.employee_id,
+        name: empData.name,
+        email: empData.email || null,
+        department: empData.department || null,
+      });
     } catch (error) {
       console.error('Session validation error:', error);
       localStorage.removeItem(SESSION_KEY);
@@ -77,14 +99,14 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
       // Find employee by employee_id
       const employeesRef = ref(db, 'employees');
       const snapshot = await get(employeesRef);
-      
+
       if (!snapshot.exists()) {
         return { error: new Error('No employees found') };
       }
 
       let foundEmployee: any = null;
       let foundKey: string = '';
-      
+
       snapshot.forEach((child) => {
         const emp = child.val();
         if (emp.employee_id === employeeId) {
@@ -106,18 +128,18 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
         return { error: new Error('Account is deactivated') };
       }
 
-      // Create session
-      const sessionToken = crypto.randomUUID();
+      // Store local employee session (24h)
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
 
-      await set(ref(db, `employee_sessions/${sessionToken}`), {
-        employee_id: foundKey,
-        created_at: new Date().toISOString(),
-        expires_at: expiresAt.toISOString(),
-      });
+      localStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({
+          employee_id: foundKey,
+          expires_at: expiresAt.toISOString(),
+        } satisfies LocalEmployeeSession)
+      );
 
-      localStorage.setItem(SESSION_KEY, sessionToken);
       setEmployee({
         id: foundKey,
         employee_id: foundEmployee.employee_id,
@@ -125,7 +147,7 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
         email: foundEmployee.email || null,
         department: foundEmployee.department || null,
       });
-      
+
       return { error: null };
     } catch (error: any) {
       return { error: new Error(error.message || 'Login failed') };
@@ -133,14 +155,6 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    const sessionToken = localStorage.getItem(SESSION_KEY);
-    if (sessionToken) {
-      try {
-        await remove(ref(db, `employee_sessions/${sessionToken}`));
-      } catch (error) {
-        console.error('Logout error:', error);
-      }
-    }
     localStorage.removeItem(SESSION_KEY);
     setEmployee(null);
   };
