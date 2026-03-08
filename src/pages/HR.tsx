@@ -112,6 +112,21 @@ const HR = () => {
       if (fixedCount > 0) {
         toast.success(`Fixed ${fixedCount} employee record(s) — passwords migrated successfully`);
       }
+
+      // Sync all Firebase employees to Supabase for edge function login
+      for (const emp of data) {
+        if (emp.employee_id && emp.password_hash) {
+          await supabase.from('employees').upsert({
+            employee_id: emp.employee_id,
+            name: emp.name,
+            email: emp.email || null,
+            phone: emp.phone || null,
+            department: emp.department || null,
+            password_hash: emp.password_hash,
+            is_active: emp.is_active !== false,
+          }, { onConflict: 'employee_id' }).then(() => {});
+        }
+      }
       
       setEmployees(data);
     } catch (error: any) {
