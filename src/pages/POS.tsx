@@ -400,6 +400,7 @@ const POS = () => {
                             </p>
                             <p className="text-xs text-muted-foreground">
                               <span className="font-mono">{product.barcode || product.sku}</span> • {product.weight}g • Stock: {product.stock}
+                              {product.purchase_price ? ` • Cost: ₹${product.purchase_price.toLocaleString()}` : ""}
                             </p>
                           </div>
                         </div>
