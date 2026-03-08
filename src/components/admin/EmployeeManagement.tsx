@@ -125,20 +125,21 @@ export function EmployeeManagement() {
       // Save to Firebase
       await addItem('employees', { ...rest, is_active: true, password_hash: password });
       
-      // Also sync to Supabase for employee-auth edge function
-      const { data: existingEmp } = await supabase.from('employees')
-        .select('id').eq('employee_id', formData.employee_id).maybeSingle();
-      if (existingEmp) {
-        await supabase.from('employees').update({
-          name: formData.name, email: formData.email || null, phone: formData.phone || null,
-          department: formData.department || null, password_hash: password, is_active: true,
-        }).eq('id', existingEmp.id);
-      } else {
-        await supabase.from('employees').insert({
-          employee_id: formData.employee_id, name: formData.name, email: formData.email || null,
-          phone: formData.phone || null, department: formData.department || null,
-          password_hash: password, is_active: true,
-        });
+      // Sync to backend employee auth store
+      const { error: syncError } = await supabase.functions.invoke('manage-employees', {
+        body: {
+          action: 'create',
+          employee_id: formData.employee_id,
+          password: formData.password,
+          name: formData.name,
+          email: formData.email || null,
+          phone: formData.phone || null,
+          department: formData.department || null,
+        },
+      });
+
+      if (syncError) {
+        toast.error('Employee created in Firebase but backend sync failed');
       }
 
       toast.success("Employee created successfully");
@@ -180,6 +181,19 @@ export function EmployeeManagement() {
 
       await updateItem('employees', selectedEmployee!.id, updateData);
 
+      await supabase.functions.invoke('manage-employees', {
+        body: {
+          action: 'sync',
+          employee_id: selectedEmployee.employee_id,
+          name: formData.name,
+          email: formData.email || null,
+          phone: formData.phone || null,
+          department: formData.department || null,
+          password_hash: formData.password || (selectedEmployee as any).password_hash || '',
+          is_active: true,
+        },
+      });
+
       toast.success("Employee updated successfully");
       setEditDialogOpen(false);
       resetForm();
@@ -197,6 +211,19 @@ export function EmployeeManagement() {
     try {
       await updateItem('employees', employee.id, { is_active: !employee.is_active });
 
+      await supabase.functions.invoke('manage-employees', {
+        body: {
+          action: 'sync',
+          employee_id: employee.employee_id,
+          name: employee.name,
+          email: employee.email || null,
+          phone: employee.phone || null,
+          department: employee.department || null,
+          password_hash: (employee as any).password_hash || '',
+          is_active: !employee.is_active,
+        },
+      });
+
       toast.success(`Employee ${employee.is_active ? 'deactivated' : 'activated'} successfully`);
       fetchEmployees();
     } catch (error: any) {
@@ -211,6 +238,9 @@ export function EmployeeManagement() {
     try {
       setSaving(true);
       await deleteItem('employees', selectedEmployee.id);
+      await supabase.functions.invoke('manage-employees', {
+        body: { action: 'delete', id: selectedEmployee.id },
+      });
 
       toast.success("Employee deleted successfully");
       setDeleteDialogOpen(false);

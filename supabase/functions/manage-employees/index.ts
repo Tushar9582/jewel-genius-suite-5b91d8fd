@@ -35,9 +35,9 @@ serve(async (req) => {
     if (action === "sync") {
       const { employee_id, name, email, phone, department, password_hash, is_active } = body;
       
-      if (!employee_id || !password_hash) {
+      if (!employee_id) {
         return new Response(
-          JSON.stringify({ error: "employee_id and password_hash required" }),
+          JSON.stringify({ error: "employee_id required" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -49,15 +49,31 @@ serve(async (req) => {
         .maybeSingle();
 
       if (existing) {
-        await supabaseAdmin.from("employees").update({
-          name, email: email || null, phone: phone || null,
-          department: department || null, password_hash,
+        const updates: Record<string, unknown> = {
+          name,
+          email: email || null,
+          phone: phone || null,
+          department: department || null,
           is_active: is_active !== false,
-        }).eq("id", existing.id);
+        };
+        if (password_hash) updates.password_hash = password_hash;
+
+        await supabaseAdmin.from("employees").update(updates).eq("id", existing.id);
       } else {
+        if (!password_hash) {
+          return new Response(
+            JSON.stringify({ error: "password_hash required for new employee sync" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         await supabaseAdmin.from("employees").insert({
-          employee_id, name, email: email || null, phone: phone || null,
-          department: department || null, password_hash,
+          employee_id,
+          name,
+          email: email || null,
+          phone: phone || null,
+          department: department || null,
+          password_hash,
           is_active: is_active !== false,
         });
       }
