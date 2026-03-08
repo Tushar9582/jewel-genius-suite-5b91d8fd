@@ -27,7 +27,7 @@ export function InventoryAlerts({ products = [] }: { products?: Product[] }) {
     });
 
     return items.slice(0, 5);
-  }, [products]);
+  }, [safeProducts]);
 
   const urgentCount = alerts.filter(a => a.priority === "high").length;
 
