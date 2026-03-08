@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, Barcode, Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, Loader2, Calculator } from "lucide-react";
+import {
+  ShoppingCart, Barcode, Search, Plus, Minus, Trash2,
+  CreditCard, Banknote, Smartphone, Loader2, Calculator, Gem,
+} from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { GoldRateCalculator } from "@/components/pos/GoldRateCalculator";
+import { GoldRateCalculator, type ProductForCalc, type CalcResult } from "@/components/pos/GoldRateCalculator";
 import { toast } from "sonner";
 import { getAll, addItem, updateItem } from "@/lib/firebaseDb";
 
@@ -14,26 +17,42 @@ interface Product {
   id: string;
   sku: string;
   name: string;
+  category: string;
+  metal_type: string;
   weight: number;
   unit_price: number;
   stock: number;
+  status: string;
 }
 
-interface CartItem extends Product {
+interface CartItem {
+  id: string;
+  name: string;
+  weight: number;
+  unit_price: number;
+  stock: number;
   qty: number;
+  sku: string;
+  /** True if price came from gold calculator */
+  calculatedPrice?: boolean;
+  purity?: string;
 }
+
+const isGoldProduct = (p: Product) =>
+  p.metal_type?.toLowerCase().includes("gold");
 
 const POS = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
+  const [calcProduct, setCalcProduct] = useState<ProductForCalc | null>(null);
   const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["pos-products"],
     queryFn: async () => {
       const all = await getAll<Product>("products");
-      return all.filter(p => p.stock > 0).sort((a, b) => a.name.localeCompare(b.name));
+      return all.filter((p) => p.stock > 0).sort((a, b) => a.name.localeCompare(b.name));
     },
   });
 
@@ -51,6 +70,8 @@ const POS = () => {
           name: item.name,
           qty: item.qty,
           price: item.unit_price,
+          calculated: item.calculatedPrice || false,
+          purity: item.purity || null,
         })),
         subtotal,
         tax,
@@ -78,6 +99,7 @@ const POS = () => {
     },
   });
 
+  // Add product directly with inventory price (non-gold items)
   const addToCart = (product: Product) => {
     const existing = cart.find((item) => item.id === product.id);
     if (existing) {
@@ -87,9 +109,76 @@ const POS = () => {
       }
       setCart(cart.map((item) => (item.id === product.id ? { ...item, qty: item.qty + 1 } : item)));
     } else {
-      setCart([...cart, { ...product, qty: 1 }]);
+      setCart([
+        ...cart,
+        {
+          id: product.id,
+          name: product.name,
+          weight: product.weight,
+          unit_price: product.unit_price,
+          stock: product.stock,
+          qty: 1,
+          sku: product.sku,
+        },
+      ]);
     }
     toast.success(`${product.name} added to cart`);
+  };
+
+  // Add from calculator with computed gold price
+  const handleCalcAddToCart = useCallback(
+    (result: CalcResult) => {
+      const product = products.find((p) => p.id === result.productId);
+      if (!product) {
+        toast.error("Product not found in inventory");
+        return;
+      }
+      const existing = cart.find((item) => item.id === product.id);
+      if (existing) {
+        if (existing.qty >= product.stock) {
+          toast.error("Not enough stock available");
+          return;
+        }
+        // Update with new calculated price
+        setCart(
+          cart.map((item) =>
+            item.id === product.id
+              ? { ...item, unit_price: result.calculatedPrice, qty: item.qty + 1, calculatedPrice: true, purity: result.purity }
+              : item
+          )
+        );
+      } else {
+        setCart([
+          ...cart,
+          {
+            id: product.id,
+            name: product.name,
+            weight: result.weight,
+            unit_price: result.calculatedPrice,
+            stock: product.stock,
+            qty: 1,
+            sku: product.sku,
+            calculatedPrice: true,
+            purity: result.purity,
+          },
+        ]);
+      }
+    },
+    [cart, products]
+  );
+
+  // Send gold product to calculator
+  const sendToCalculator = (product: Product) => {
+    setCalcProduct({
+      id: product.id,
+      name: product.name,
+      weight: product.weight,
+      metal_type: product.metal_type,
+      unit_price: product.unit_price,
+      sku: product.sku,
+      stock: product.stock,
+      category: product.category,
+    });
   };
 
   const updateQty = (productId: string, delta: number) => {
@@ -136,7 +225,9 @@ const POS = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+        {/* Left: Products + Cart */}
         <div className="xl:col-span-2 space-y-4 sm:space-y-6">
+          {/* Product Search */}
           <Card variant="elevated">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -167,31 +258,51 @@ const POS = () => {
                     {products.length === 0 ? "No products in inventory" : "No products found"}
                   </p>
                 ) : (
-                  filteredProducts.slice(0, 5).map((product) => (
-                    <div
-                      key={product.id}
-                      className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 cursor-pointer"
-                      onClick={() => addToCart(product)}
-                    >
-                      <div>
-                        <p className="font-medium text-sm">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {product.sku} • {product.weight}g • Stock: {product.stock}
-                        </p>
+                  filteredProducts.slice(0, 8).map((product) => {
+                    const gold = isGoldProduct(product);
+                    return (
+                      <div
+                        key={product.id}
+                        className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 cursor-pointer"
+                        onClick={() => (gold ? sendToCalculator(product) : addToCart(product))}
+                      >
+                        <div className="flex items-center gap-2">
+                          {gold && <Gem className="w-3.5 h-3.5 text-primary shrink-0" />}
+                          <div>
+                            <p className="font-medium text-sm flex items-center gap-1.5">
+                              {product.name}
+                              {gold && (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary">
+                                  {product.metal_type}
+                                </Badge>
+                              )}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {product.sku} • {product.weight}g • Stock: {product.stock}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right flex items-center gap-2">
+                          <p className="font-semibold text-primary text-sm">₹{product.unit_price.toLocaleString()}</p>
+                          {gold ? (
+                            <Button variant="gold" size="sm" className="h-6 text-[10px] px-2">
+                              <Calculator className="w-3 h-3 mr-1" /> Calculate
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="sm" className="h-6 text-xs">
+                              <Plus className="w-3 h-3 mr-1" /> Add
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-primary text-sm">₹{product.unit_price.toLocaleString()}</p>
-                        <Button variant="ghost" size="sm" className="h-6 text-xs">
-                          <Plus className="w-3 h-3 mr-1" /> Add
-                        </Button>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </CardContent>
           </Card>
 
+          {/* Cart */}
           <Card variant="elevated">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -204,7 +315,11 @@ const POS = () => {
             </CardHeader>
             <CardContent>
               {cart.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">Cart is empty. Add products to continue.</p>
+                <p className="text-center text-muted-foreground py-8 text-sm">
+                  Cart is empty. Search products above to add items.
+                  <br />
+                  <span className="text-xs">Gold items → Calculator • Other items → Direct add</span>
+                </p>
               ) : (
                 <div className="space-y-3">
                   {cart.map((item) => (
@@ -214,11 +329,25 @@ const POS = () => {
                     >
                       <div className="flex items-center gap-3 flex-1">
                         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-gold/20 flex items-center justify-center shrink-0">
-                          <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                          {item.calculatedPrice ? (
+                            <Gem className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                          ) : (
+                            <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm sm:text-base truncate">{item.name}</p>
-                          <p className="text-xs sm:text-sm text-muted-foreground">Weight: {item.weight}g</p>
+                          <p className="font-medium text-sm sm:text-base truncate flex items-center gap-1.5">
+                            {item.name}
+                            {item.calculatedPrice && (
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary">
+                                {item.purity} Calc
+                              </Badge>
+                            )}
+                          </p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">
+                            Weight: {item.weight}g
+                            {item.calculatedPrice && " • Price via Calculator"}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
@@ -246,6 +375,7 @@ const POS = () => {
           </Card>
         </div>
 
+        {/* Right: Calculator + Payment */}
         <div className="space-y-4 sm:space-y-6">
           {/* Gold Rate Calculator */}
           <Card variant="elevated">
@@ -256,10 +386,15 @@ const POS = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <GoldRateCalculator />
+              <GoldRateCalculator
+                selectedProduct={calcProduct}
+                onAddToCart={handleCalcAddToCart}
+                onProductConsumed={() => setCalcProduct(null)}
+              />
             </CardContent>
           </Card>
 
+          {/* Payment Summary */}
           <Card variant="gold">
             <CardHeader className="pb-3 sm:pb-4">
               <CardTitle className="text-base sm:text-lg">Payment Summary</CardTitle>
@@ -304,7 +439,13 @@ const POS = () => {
                 </div>
               </div>
 
-              <Button variant="gold" className="w-full mt-4" size="lg" disabled={cart.length === 0 || completeSaleMutation.isPending} onClick={() => completeSaleMutation.mutate()}>
+              <Button
+                variant="gold"
+                className="w-full mt-4"
+                size="lg"
+                disabled={cart.length === 0 || completeSaleMutation.isPending}
+                onClick={() => completeSaleMutation.mutate()}
+              >
                 {completeSaleMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Complete Sale
               </Button>

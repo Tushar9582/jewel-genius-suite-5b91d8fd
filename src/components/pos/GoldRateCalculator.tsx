@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Calculator,
   RotateCcw,
   Copy,
   Check,
@@ -25,6 +24,7 @@ import {
   IndianRupee,
   Percent,
   Sparkles,
+  ShoppingCart,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,8 +35,40 @@ const PURITY_MAP: Record<string, { value: number; label: string }> = {
   "14K": { value: 0.585, label: "14K (58.5%)" },
 };
 
+// Maps inventory metal_type strings to purity keys
+function metalTypeToPurity(metalType: string): string {
+  if (metalType.includes("24K")) return "24K";
+  if (metalType.includes("22K")) return "22K";
+  if (metalType.includes("18K")) return "18K";
+  if (metalType.includes("14K")) return "14K";
+  return "22K"; // default
+}
+
+export interface ProductForCalc {
+  id: string;
+  name: string;
+  weight: number;
+  metal_type: string;
+  unit_price: number;
+  sku: string;
+  stock: number;
+  category?: string;
+}
+
+export interface CalcResult {
+  productId: string;
+  productName: string;
+  calculatedPrice: number;
+  weight: number;
+  purity: string;
+  makingCharges: number;
+  gst: number;
+}
+
 interface CalcItem {
   id: string;
+  productId?: string;
+  productName?: string;
   goldRate: string;
   weight: string;
   purity: string;
@@ -77,9 +109,50 @@ const calcItemResult = (item: CalcItem) => {
 const fmt = (n: number) =>
   n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
-export function GoldRateCalculator() {
+interface GoldRateCalculatorProps {
+  /** Product auto-filled from inventory when user clicks "Calculate" */
+  selectedProduct?: ProductForCalc | null;
+  /** Called when user wants to add calculated price to cart */
+  onAddToCart?: (result: CalcResult) => void;
+  /** Called after product is consumed so parent can clear it */
+  onProductConsumed?: () => void;
+}
+
+export function GoldRateCalculator({
+  selectedProduct,
+  onAddToCart,
+  onProductConsumed,
+}: GoldRateCalculatorProps) {
   const [items, setItems] = useState<CalcItem[]>([defaultItem()]);
   const [copied, setCopied] = useState(false);
+
+  // Auto-fill when a product is selected from inventory
+  useEffect(() => {
+    if (selectedProduct) {
+      const purity = metalTypeToPurity(selectedProduct.metal_type);
+      const newItem: CalcItem = {
+        id: crypto.randomUUID(),
+        productId: selectedProduct.id,
+        productName: selectedProduct.name,
+        goldRate: "",
+        weight: String(selectedProduct.weight),
+        purity,
+        makingType: "percent",
+        makingCharges: "",
+        additionalCharges: "",
+      };
+      // Replace first item or add as new
+      setItems((prev) => {
+        const first = prev[0];
+        if (first && !first.goldRate && !first.weight) {
+          return [newItem, ...prev.slice(1)];
+        }
+        return [newItem, ...prev];
+      });
+      toast.success(`${selectedProduct.name} loaded — enter gold rate to calculate`);
+      onProductConsumed?.();
+    }
+  }, [selectedProduct, onProductConsumed]);
 
   const updateItem = useCallback((id: string, patch: Partial<CalcItem>) => {
     setItems((prev) =>
@@ -88,7 +161,9 @@ export function GoldRateCalculator() {
   }, []);
 
   const removeItem = useCallback((id: string) => {
-    setItems((prev) => (prev.length === 1 ? [defaultItem()] : prev.filter((i) => i.id !== id)));
+    setItems((prev) =>
+      prev.length === 1 ? [defaultItem()] : prev.filter((i) => i.id !== id)
+    );
   }, []);
 
   const addItem = useCallback(() => {
@@ -112,7 +187,29 @@ export function GoldRateCalculator() {
     setTimeout(() => setCopied(false), 2000);
   }, [grandTotal]);
 
-  // Quick rates derived from first item's gold rate
+  const handleAddToCart = useCallback(
+    (item: CalcItem) => {
+      if (!onAddToCart) return;
+      const res = calcItemResult(item);
+      if (res.total <= 0) {
+        toast.error("Enter gold rate to calculate price first");
+        return;
+      }
+      onAddToCart({
+        productId: item.productId || item.id,
+        productName: item.productName || "Custom Gold Item",
+        calculatedPrice: Math.round(res.total),
+        weight: parseFloat(item.weight) || 0,
+        purity: item.purity,
+        makingCharges: res.makingTotal,
+        gst: res.gst,
+      });
+      toast.success("Added to cart with calculated price!");
+    },
+    [onAddToCart]
+  );
+
+  // Quick rates from first item's gold rate
   const baseRate = parseFloat(items[0]?.goldRate || "0") || 0;
 
   return (
@@ -150,6 +247,7 @@ export function GoldRateCalculator() {
       <AnimatePresence mode="popLayout">
         {items.map((item, idx) => {
           const res = calcItemResult(item);
+          const isProductLinked = !!item.productId;
           return (
             <motion.div
               key={item.id}
@@ -163,7 +261,16 @@ export function GoldRateCalculator() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2 text-sm">
                       <Gem className="h-4 w-4 text-primary" />
-                      Item {idx + 1}
+                      {isProductLinked ? (
+                        <span className="flex items-center gap-1.5">
+                          {item.productName}
+                          <Badge variant="secondary" className="text-[10px] px-1.5">
+                            Inventory
+                          </Badge>
+                        </span>
+                      ) : (
+                        `Item ${idx + 1}`
+                      )}
                     </CardTitle>
                     {items.length > 1 && (
                       <Button
@@ -199,6 +306,11 @@ export function GoldRateCalculator() {
                       <Label className="flex items-center gap-1.5 text-xs">
                         <Scale className="h-3 w-3 text-primary" />
                         Weight (g)
+                        {isProductLinked && (
+                          <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1">
+                            Auto
+                          </Badge>
+                        )}
                       </Label>
                       <Input
                         type="number"
@@ -217,6 +329,11 @@ export function GoldRateCalculator() {
                     <Label className="flex items-center gap-1.5 text-xs">
                       <Sparkles className="h-3 w-3 text-primary" />
                       Purity
+                      {isProductLinked && (
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1">
+                          Auto
+                        </Badge>
+                      )}
                     </Label>
                     <Select
                       value={item.purity}
@@ -313,6 +430,19 @@ export function GoldRateCalculator() {
                           <span className="text-primary">₹{fmt(res.total)}</span>
                         </div>
                       </div>
+
+                      {/* Add to Cart button — only when connected to POS */}
+                      {onAddToCart && isProductLinked && (
+                        <Button
+                          variant="gold"
+                          size="sm"
+                          className="w-full mt-2 text-xs"
+                          onClick={() => handleAddToCart(item)}
+                        >
+                          <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
+                          Add to Cart — ₹{fmt(res.total)}
+                        </Button>
+                      )}
                     </motion.div>
                   )}
                 </CardContent>
