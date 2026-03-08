@@ -90,7 +90,7 @@ const Inventory = () => {
         id: editProduct.id,
         data: {
           name: formData.name, category: formData.category, metal_type: formData.metal_type,
-          weight: parseFloat(formData.weight), stock, unit_price: parseFloat(formData.unit_price), status,
+          weight: parseFloat(formData.weight), stock, purchase_price: parseFloat(formData.purchase_price), unit_price: parseFloat(formData.unit_price), status,
         },
       });
     } else {
