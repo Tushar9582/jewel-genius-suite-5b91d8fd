@@ -416,10 +416,21 @@ const HR = () => {
       {/* Employee List */}
       <Card variant="elevated">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <UserCog className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-            All Employees
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <UserCog className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+              All Employees
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={syncEmployeesToSupabase}
+              disabled={syncing || employees.length === 0}
+            >
+              {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              Sync Employees
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
