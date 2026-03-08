@@ -216,7 +216,9 @@ const Inventory = () => {
                 <TableHead className="hidden lg:table-cell">Metal</TableHead>
                 <TableHead className="hidden sm:table-cell">Weight</TableHead>
                 <TableHead>Stock</TableHead>
-                <TableHead className="hidden sm:table-cell">Price</TableHead>
+                <TableHead className="hidden sm:table-cell">Purchase ₹</TableHead>
+                <TableHead className="hidden sm:table-cell">Selling ₹</TableHead>
+                <TableHead className="hidden lg:table-cell">Margin</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-center">Actions</TableHead>
               </TableRow></TableHeader>
