@@ -11,7 +11,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GoldRateCalculator, type ProductForCalc, type CalcResult } from "@/components/pos/GoldRateCalculator";
 import { toast } from "sonner";
-import { getAll, addItem, updateItem } from "@/lib/firebaseDb";
+import { employeeGetAll, employeeAddItem, employeeUpdateItem } from "@/lib/employeeFirebaseProxy";
 import { useEmployeeAuth } from "@/contexts/EmployeeAuthContext";
 
 interface Product {
