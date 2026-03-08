@@ -35,8 +35,8 @@ export function CustomerInsights({ customers = [], sales = [] }: { customers?: C
   const safeCustomers = Array.isArray(customers) ? customers : [];
   const safeSales = Array.isArray(sales) ? sales : [];
   const topCustomers = useMemo(() =>
-    [...customers].sort((a, b) => Number(b.total_purchases || 0) - Number(a.total_purchases || 0)).slice(0, 5),
-    [customers]
+    [...safeCustomers].sort((a, b) => Number(b.total_purchases || 0) - Number(a.total_purchases || 0)).slice(0, 5),
+    [safeCustomers]
   );
 
   const cityData = useMemo(() => {
