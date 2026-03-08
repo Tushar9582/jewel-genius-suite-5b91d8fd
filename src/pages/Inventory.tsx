@@ -24,11 +24,12 @@ interface Product {
   metal_type: string;
   weight: number;
   stock: number;
+  purchase_price: number;
   unit_price: number;
   status: string;
 }
 
-const emptyForm = { name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "" };
+const emptyForm = { name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", purchase_price: "", unit_price: "" };
 
 const Inventory = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -89,7 +90,7 @@ const Inventory = () => {
         id: editProduct.id,
         data: {
           name: formData.name, category: formData.category, metal_type: formData.metal_type,
-          weight: parseFloat(formData.weight), stock, unit_price: parseFloat(formData.unit_price), status,
+          weight: parseFloat(formData.weight), stock, purchase_price: parseFloat(formData.purchase_price), unit_price: parseFloat(formData.unit_price), status,
         },
       });
     } else {
@@ -98,7 +99,7 @@ const Inventory = () => {
       const sku = `${metalPrefix}-${Date.now().toString(36).toUpperCase()}`;
       addProductMutation.mutate({
         sku, barcode, name: formData.name, category: formData.category, metal_type: formData.metal_type,
-        weight: parseFloat(formData.weight), stock, unit_price: parseFloat(formData.unit_price), status,
+        weight: parseFloat(formData.weight), stock, purchase_price: parseFloat(formData.purchase_price), unit_price: parseFloat(formData.unit_price), status,
       });
     }
   };
@@ -111,6 +112,7 @@ const Inventory = () => {
       metal_type: product.metal_type,
       weight: String(product.weight),
       stock: String(product.stock),
+      purchase_price: String(product.purchase_price || ""),
       unit_price: String(product.unit_price),
     });
   };
@@ -138,9 +140,11 @@ const Inventory = () => {
   const stats = {
     totalProducts: products.length,
     totalValue: products.reduce((acc, p) => acc + (p.unit_price || 0) * (p.stock || 0), 0),
+    totalCost: products.reduce((acc, p) => acc + (p.purchase_price || 0) * (p.stock || 0), 0),
     lowStock: products.filter((p) => p.status === "Low Stock").length,
     outOfStock: products.filter((p) => p.status === "Out of Stock").length,
   };
+  const totalProfit = stats.totalValue - stats.totalCost;
 
   const formatCurrency = (value: number) => {
     if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
@@ -167,11 +171,12 @@ const Inventory = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
         <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Total Products</p><p className="text-xl sm:text-2xl font-bold text-primary">{stats.totalProducts}</p></CardContent></Card>
-        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Total Value</p><p className="text-xl sm:text-2xl font-bold">{formatCurrency(stats.totalValue)}</p></CardContent></Card>
-        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Low Stock</p><p className="text-xl sm:text-2xl font-bold text-yellow-500">{stats.lowStock}</p></CardContent></Card>
-        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Out of Stock</p><p className="text-xl sm:text-2xl font-bold text-destructive">{stats.outOfStock}</p></CardContent></Card>
+        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Selling Value</p><p className="text-xl sm:text-2xl font-bold">{formatCurrency(stats.totalValue)}</p></CardContent></Card>
+        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Cost Value</p><p className="text-xl sm:text-2xl font-bold text-muted-foreground">{formatCurrency(stats.totalCost)}</p></CardContent></Card>
+        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Profit Margin</p><p className="text-xl sm:text-2xl font-bold text-emerald-500">{formatCurrency(totalProfit)}</p></CardContent></Card>
+        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Low / Out</p><p className="text-xl sm:text-2xl font-bold text-destructive">{stats.lowStock} / {stats.outOfStock}</p></CardContent></Card>
       </div>
 
       <Card variant="elevated">
@@ -211,7 +216,9 @@ const Inventory = () => {
                 <TableHead className="hidden lg:table-cell">Metal</TableHead>
                 <TableHead className="hidden sm:table-cell">Weight</TableHead>
                 <TableHead>Stock</TableHead>
-                <TableHead className="hidden sm:table-cell">Price</TableHead>
+                <TableHead className="hidden sm:table-cell">Purchase ₹</TableHead>
+                <TableHead className="hidden sm:table-cell">Selling ₹</TableHead>
+                <TableHead className="hidden lg:table-cell">Margin</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-center">Actions</TableHead>
               </TableRow></TableHeader>
@@ -228,7 +235,15 @@ const Inventory = () => {
                     <TableCell className="hidden lg:table-cell text-sm">{item.metal_type}</TableCell>
                     <TableCell className="hidden sm:table-cell text-sm">{item.weight}g</TableCell>
                     <TableCell className="text-sm">{item.stock}</TableCell>
-                    <TableCell className="hidden sm:table-cell font-semibold text-sm">₹{item.unit_price?.toLocaleString()}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">₹{(item.purchase_price || 0).toLocaleString()}</TableCell>
+                    <TableCell className="hidden sm:table-cell font-semibold text-sm text-primary">₹{item.unit_price?.toLocaleString()}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-sm">
+                      {item.purchase_price ? (
+                        <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
+                          +{(((item.unit_price - item.purchase_price) / item.purchase_price) * 100).toFixed(1)}%
+                        </Badge>
+                      ) : <span className="text-muted-foreground text-xs">—</span>}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={item.status === "In Stock" ? "default" : item.status === "Low Stock" ? "secondary" : "destructive"} className="text-xs whitespace-nowrap">{item.status}</Badge>
                     </TableCell>
@@ -275,7 +290,18 @@ const Inventory = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label htmlFor="stock">Stock</Label><Input id="stock" type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} placeholder="10" required /></div>
-              <div className="space-y-2"><Label htmlFor="price">Price (₹)</Label><Input id="price" type="number" value={formData.unit_price} onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })} placeholder="50000" required /></div>
+              <div className="space-y-2"><Label htmlFor="purchase_price">Purchase Price (₹)</Label><Input id="purchase_price" type="number" value={formData.purchase_price} onChange={(e) => setFormData({ ...formData, purchase_price: e.target.value })} placeholder="40000" required /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label htmlFor="price">Selling Price (₹)</Label><Input id="price" type="number" value={formData.unit_price} onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })} placeholder="50000" required /></div>
+              <div className="space-y-2 flex flex-col justify-end">
+                <Label className="text-xs text-muted-foreground">Profit Margin</Label>
+                <div className="h-9 flex items-center px-3 rounded-md border bg-muted/50 text-sm font-semibold text-emerald-600">
+                  {formData.purchase_price && formData.unit_price
+                    ? `₹${(parseFloat(formData.unit_price) - parseFloat(formData.purchase_price)).toLocaleString()} (${(((parseFloat(formData.unit_price) - parseFloat(formData.purchase_price)) / parseFloat(formData.purchase_price)) * 100).toFixed(1)}%)`
+                    : "—"}
+                </div>
+              </div>
             </div>
             {!editProduct && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 flex items-center gap-2">
