@@ -70,12 +70,19 @@ const Inventory = () => {
     });
   };
 
-  const filteredProducts = products.filter(
-    (p) =>
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch =
       p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.barcode?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      p.barcode?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesMetal =
+      metalFilter === "all" ||
+      (metalFilter === "Gold" && p.metal_type?.toLowerCase().includes("gold")) ||
+      (metalFilter === "Silver" && p.metal_type?.toLowerCase().includes("silver")) ||
+      (metalFilter === "Diamond" && p.metal_type?.toLowerCase().includes("diamond")) ||
+      (metalFilter === "Platinum" && p.metal_type?.toLowerCase().includes("platinum"));
+    return matchesSearch && matchesMetal;
+  });
 
   const stats = {
     totalProducts: products.length,
