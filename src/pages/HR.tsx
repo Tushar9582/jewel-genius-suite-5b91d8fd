@@ -107,26 +107,12 @@ const HR = () => {
         toast.success(`Fixed ${fixedCount} employee record(s) — passwords migrated successfully`);
       }
 
-      // Sync all Firebase employees to Supabase for edge function login
+      // Sync all Firebase employees to Supabase via edge function
       for (const emp of data) {
         if (emp.employee_id && emp.password_hash) {
-          // Check if exists first
-          const { data: existing } = await supabase.from('employees')
-            .select('id')
-            .eq('employee_id', emp.employee_id)
-            .maybeSingle();
-          
-          if (existing) {
-            await supabase.from('employees').update({
-              name: emp.name,
-              email: emp.email || null,
-              phone: emp.phone || null,
-              department: emp.department || null,
-              password_hash: emp.password_hash,
-              is_active: emp.is_active !== false,
-            }).eq('id', existing.id);
-          } else {
-            await supabase.from('employees').insert({
+          await supabase.functions.invoke('manage-employees', {
+            body: {
+              action: 'sync',
               employee_id: emp.employee_id,
               name: emp.name,
               email: emp.email || null,
@@ -134,8 +120,8 @@ const HR = () => {
               department: emp.department || null,
               password_hash: emp.password_hash,
               is_active: emp.is_active !== false,
-            });
-          }
+            },
+          });
         }
       }
       
