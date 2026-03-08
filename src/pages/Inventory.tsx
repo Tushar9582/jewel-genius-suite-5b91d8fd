@@ -51,7 +51,7 @@ const Inventory = () => {
     onError: (error) => toast.error("Failed to add product: " + error.message),
   });
 
-  const resetForm = () => setFormData({ sku: "", name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "" });
+  const resetForm = () => setFormData({ name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "" });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
