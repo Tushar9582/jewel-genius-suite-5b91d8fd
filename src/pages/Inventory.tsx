@@ -235,7 +235,15 @@ const Inventory = () => {
                     <TableCell className="hidden lg:table-cell text-sm">{item.metal_type}</TableCell>
                     <TableCell className="hidden sm:table-cell text-sm">{item.weight}g</TableCell>
                     <TableCell className="text-sm">{item.stock}</TableCell>
-                    <TableCell className="hidden sm:table-cell font-semibold text-sm">₹{item.unit_price?.toLocaleString()}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">₹{(item.purchase_price || 0).toLocaleString()}</TableCell>
+                    <TableCell className="hidden sm:table-cell font-semibold text-sm text-primary">₹{item.unit_price?.toLocaleString()}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-sm">
+                      {item.purchase_price ? (
+                        <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
+                          +{(((item.unit_price - item.purchase_price) / item.purchase_price) * 100).toFixed(1)}%
+                        </Badge>
+                      ) : <span className="text-muted-foreground text-xs">—</span>}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={item.status === "In Stock" ? "default" : item.status === "Low Stock" ? "secondary" : "destructive"} className="text-xs whitespace-nowrap">{item.status}</Badge>
                     </TableCell>
