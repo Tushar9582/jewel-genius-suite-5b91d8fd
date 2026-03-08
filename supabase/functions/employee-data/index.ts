@@ -6,6 +6,44 @@ const corsHeaders = {
 };
 
 const FIREBASE_DB_URL = "https://jewellery-1f0be-default-rtdb.firebaseio.com";
+const FIREBASE_API_KEY = "AIzaSyDeS9pG468xGTcSBb31GBli3n4ZUWo5sVc";
+
+// Cache the ID token to avoid signing in on every request
+let cachedToken: string | null = null;
+let tokenExpiry = 0;
+
+async function getFirebaseIdToken(): Promise<string> {
+  if (cachedToken && Date.now() < tokenExpiry) {
+    return cachedToken;
+  }
+
+  const email = Deno.env.get("FIREBASE_ADMIN_EMAIL");
+  const password = Deno.env.get("FIREBASE_ADMIN_PASSWORD");
+
+  if (!email || !password) {
+    throw new Error("Firebase admin credentials not configured");
+  }
+
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+    }
+  );
+
+  const data = await res.json();
+  if (data.error) {
+    console.error("Firebase Auth error:", data.error);
+    throw new Error(data.error.message || "Firebase auth failed");
+  }
+
+  cachedToken = data.idToken;
+  // Token expires in ~1 hour, refresh at 50 min
+  tokenExpiry = Date.now() + 50 * 60 * 1000;
+  return cachedToken!;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -13,14 +51,7 @@ serve(async (req) => {
   }
 
   try {
-    const dbSecret = Deno.env.get("FIREBASE_DB_SECRET");
-    if (!dbSecret) {
-      return new Response(JSON.stringify({ error: "Firebase secret not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
+    const idToken = await getFirebaseIdToken();
     const { path, action, data, id } = await req.json();
 
     if (!path) {
@@ -30,9 +61,9 @@ serve(async (req) => {
       });
     }
 
-    const authParam = `auth=${dbSecret}`;
+    const authParam = `auth=${idToken}`;
 
-    // READ: get all items or single item
+    // READ
     if (!action || action === "getAll") {
       const url = id
         ? `${FIREBASE_DB_URL}/${path}/${id}.json?${authParam}`
@@ -40,8 +71,15 @@ serve(async (req) => {
       const res = await fetch(url);
       const raw = await res.json();
 
-      if (!raw || raw.error) {
+      if (!raw || (typeof raw === "object" && raw.error)) {
         console.error("Firebase read error:", raw);
+        return new Response(JSON.stringify([]), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (typeof raw === "string") {
+        console.error("Firebase returned string:", raw);
         return new Response(JSON.stringify([]), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -63,7 +101,7 @@ serve(async (req) => {
       });
     }
 
-    // WRITE: add item
+    // ADD
     if (action === "add") {
       const res = await fetch(`${FIREBASE_DB_URL}/${path}.json?${authParam}`, {
         method: "POST",
@@ -86,7 +124,7 @@ serve(async (req) => {
       });
     }
 
-    // UPDATE: update item
+    // UPDATE
     if (action === "update" && id) {
       const res = await fetch(`${FIREBASE_DB_URL}/${path}/${id}.json?${authParam}`, {
         method: "PATCH",
