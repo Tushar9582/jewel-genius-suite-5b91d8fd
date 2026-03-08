@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { signInAnonymously } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 
 interface Employee {
   id: string;
