@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { signInAnonymously } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 
 interface Employee {
   id: string;
@@ -35,6 +36,16 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
     validateSession();
   }, []);
 
+  const ensureAuthForEmployeeLookup = async () => {
+    if (!auth.currentUser) {
+      try {
+        await signInAnonymously(auth);
+      } catch (error) {
+        console.error('Anonymous auth failed:', error);
+      }
+    }
+  };
+
   const validateSession = async () => {
     const sessionRaw = localStorage.getItem(SESSION_KEY);
     if (!sessionRaw) {
@@ -58,6 +69,8 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         return;
       }
+
+      await ensureAuthForEmployeeLookup();
 
       // Fetch employee data directly
       const empRef = ref(db, `employees/${sessionData.employee_id}`);
@@ -96,6 +109,8 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (employeeId: string, password: string) => {
     try {
+      await ensureAuthForEmployeeLookup();
+
       // Find employee by employee_id
       const employeesRef = ref(db, 'employees');
       const snapshot = await get(employeesRef);
