@@ -133,7 +133,10 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(
         SESSION_KEY,
         JSON.stringify({
-          employee_id: foundKey,
+          employee_id: foundEmployee.employee_id,
+          name: foundEmployee.name,
+          email: foundEmployee.email || null,
+          department: foundEmployee.department || null,
           expires_at: expiresAt.toISOString(),
         } satisfies LocalEmployeeSession)
       );
