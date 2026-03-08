@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
+import { auth as firebaseAuth } from '@/lib/firebase';
 
 interface Employee {
   id: string;
