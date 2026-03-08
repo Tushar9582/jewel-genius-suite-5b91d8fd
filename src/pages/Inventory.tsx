@@ -1,17 +1,18 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Package, Search, Plus, Filter, Download, ArrowUpDown, Loader2, QrCode, Printer } from "lucide-react";
+import { Package, Search, Plus, Filter, Download, Loader2, QrCode, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getAll, addItem } from "@/lib/firebaseDb";
+import { getAll, addItem, updateItem, deleteItem } from "@/lib/firebaseDb";
 import { ProductBarcodeDialog, generateBarcode } from "@/components/inventory/ProductBarcode";
 
 interface Product {
@@ -27,14 +28,16 @@ interface Product {
   status: string;
 }
 
+const emptyForm = { name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "" };
+
 const Inventory = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [metalFilter, setMetalFilter] = useState<string>("all");
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({
-    name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "",
-  });
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Product | null>(null);
+  const [formData, setFormData] = useState(emptyForm);
   const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery({
@@ -43,31 +46,79 @@ const Inventory = () => {
   });
 
   const addProductMutation = useMutation({
-    mutationFn: async (newProduct: Omit<Product, "id">) => {
-      return addItem("products", newProduct);
-    },
+    mutationFn: async (newProduct: Omit<Product, "id">) => addItem("products", newProduct),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Product added successfully!");
       setIsDialogOpen(false);
-      resetForm();
+      setFormData(emptyForm);
     },
     onError: (error) => toast.error("Failed to add product: " + error.message),
   });
 
-  const resetForm = () => setFormData({ name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "" });
+  const updateProductMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => updateItem("products", id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["pos-products"] });
+      toast.success("Product updated!");
+      setEditProduct(null);
+      setFormData(emptyForm);
+    },
+    onError: (error) => toast.error("Failed to update: " + error.message),
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: async (id: string) => deleteItem("products", id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["pos-products"] });
+      toast.success("Product deleted!");
+      setDeleteConfirm(null);
+    },
+    onError: (error) => toast.error("Failed to delete: " + error.message),
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const stock = parseInt(formData.stock);
     const status = stock === 0 ? "Out of Stock" : stock <= 5 ? "Low Stock" : "In Stock";
-    const barcode = generateBarcode(formData.metal_type);
-    const metalPrefix = formData.metal_type.replace(/\s/g, "").substring(0, 3).toUpperCase();
-    const sku = `${metalPrefix}-${Date.now().toString(36).toUpperCase()}`;
-    addProductMutation.mutate({
-      sku, barcode, name: formData.name, category: formData.category, metal_type: formData.metal_type,
-      weight: parseFloat(formData.weight), stock, unit_price: parseFloat(formData.unit_price), status,
+
+    if (editProduct) {
+      updateProductMutation.mutate({
+        id: editProduct.id,
+        data: {
+          name: formData.name, category: formData.category, metal_type: formData.metal_type,
+          weight: parseFloat(formData.weight), stock, unit_price: parseFloat(formData.unit_price), status,
+        },
+      });
+    } else {
+      const barcode = generateBarcode(formData.metal_type);
+      const metalPrefix = formData.metal_type.replace(/\s/g, "").substring(0, 3).toUpperCase();
+      const sku = `${metalPrefix}-${Date.now().toString(36).toUpperCase()}`;
+      addProductMutation.mutate({
+        sku, barcode, name: formData.name, category: formData.category, metal_type: formData.metal_type,
+        weight: parseFloat(formData.weight), stock, unit_price: parseFloat(formData.unit_price), status,
+      });
+    }
+  };
+
+  const openEdit = (product: Product) => {
+    setEditProduct(product);
+    setFormData({
+      name: product.name,
+      category: product.category,
+      metal_type: product.metal_type,
+      weight: String(product.weight),
+      stock: String(product.stock),
+      unit_price: String(product.unit_price),
     });
+  };
+
+  const closeForm = () => {
+    setIsDialogOpen(false);
+    setEditProduct(null);
+    setFormData(emptyForm);
   };
 
   const filteredProducts = products.filter((p) => {
@@ -97,6 +148,9 @@ const Inventory = () => {
     return `₹${value.toLocaleString()}`;
   };
 
+  const isFormOpen = isDialogOpen || !!editProduct;
+  const isPending = addProductMutation.isPending || updateProductMutation.isPending;
+
   return (
     <DashboardLayout>
       <div className="mb-6 animate-fade-in pt-2 sm:pt-0">
@@ -107,35 +161,9 @@ const Inventory = () => {
             </h1>
             <p className="text-muted-foreground mt-1 text-sm sm:text-base">Track stock, manage products, and monitor inventory value</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="gold" className="shrink-0 w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" />Add Product</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader><DialogTitle>Add New Product</DialogTitle></DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Metal</Label><Select value={formData.metal_type} onValueChange={(v) => setFormData({ ...formData, metal_type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Gold 24K">Gold 24K</SelectItem><SelectItem value="Gold 22K">Gold 22K</SelectItem><SelectItem value="Gold 18K">Gold 18K</SelectItem><SelectItem value="Gold 14K">Gold 14K</SelectItem><SelectItem value="Silver 925">Silver 925</SelectItem><SelectItem value="Diamond">Diamond</SelectItem><SelectItem value="Platinum">Platinum</SelectItem></SelectContent></Select></div>
-                  <div className="space-y-2"><Label htmlFor="name">Product Name</Label><Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Gold Necklace" required /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Category</Label><Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Necklace">Necklace</SelectItem><SelectItem value="Ring">Ring</SelectItem><SelectItem value="Bangle">Bangle</SelectItem><SelectItem value="Earring">Earring</SelectItem><SelectItem value="Pendant">Pendant</SelectItem><SelectItem value="Anklet">Anklet</SelectItem><SelectItem value="Chain">Chain</SelectItem><SelectItem value="Bracelet">Bracelet</SelectItem><SelectItem value="Set">Set</SelectItem></SelectContent></Select></div>
-                  <div className="space-y-2"><Label htmlFor="weight">Weight (g)</Label><Input id="weight" type="number" step="0.01" value={formData.weight} onChange={(e) => setFormData({ ...formData, weight: e.target.value })} placeholder="45.5" required /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label htmlFor="stock">Stock</Label><Input id="stock" type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} placeholder="10" required /></div>
-                  <div className="space-y-2"><Label htmlFor="price">Price (₹)</Label><Input id="price" type="number" value={formData.unit_price} onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })} placeholder="50000" required /></div>
-                </div>
-                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 flex items-center gap-2">
-                  <QrCode className="w-4 h-4 text-primary shrink-0" />
-                  <p className="text-xs text-muted-foreground">Unique barcode will be auto-generated for this product</p>
-                </div>
-                <Button type="submit" variant="gold" className="w-full" disabled={addProductMutation.isPending}>
-                  {addProductMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Add Product
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button variant="gold" className="shrink-0 w-full sm:w-auto" onClick={() => { setFormData(emptyForm); setEditProduct(null); setIsDialogOpen(true); }}>
+            <Plus className="w-4 h-4 mr-2" />Add Product
+          </Button>
         </div>
       </div>
 
@@ -185,11 +213,11 @@ const Inventory = () => {
                 <TableHead>Stock</TableHead>
                 <TableHead className="hidden sm:table-cell">Price</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-center">Print</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {filteredProducts.map((item) => (
-                  <TableRow key={item.id} className="cursor-pointer hover:bg-muted/50">
+                  <TableRow key={item.id} className="hover:bg-muted/50">
                     <TableCell className="font-mono text-xs">
                       <Badge variant="outline" className="font-mono text-[10px] px-1.5 border-primary/30">
                         {item.barcode || item.sku}
@@ -205,14 +233,24 @@ const Inventory = () => {
                       <Badge variant={item.status === "In Stock" ? "default" : item.status === "Low Stock" ? "secondary" : "destructive"} className="text-xs whitespace-nowrap">{item.status}</Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-primary hover:text-primary"
-                        onClick={(e) => { e.stopPropagation(); setBarcodeProduct(item); }}
-                      >
-                        <QrCode className="w-3.5 h-3.5" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(item)}>
+                            <Pencil className="w-3.5 h-3.5 mr-2" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setBarcodeProduct(item)}>
+                            <QrCode className="w-3.5 h-3.5 mr-2" /> Barcode
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteConfirm(item)}>
+                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -221,6 +259,56 @@ const Inventory = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Add / Edit Product Dialog */}
+      <Dialog open={isFormOpen} onOpenChange={(open) => !open && closeForm()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{editProduct ? "Edit Product" : "Add New Product"}</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Metal</Label><Select value={formData.metal_type} onValueChange={(v) => setFormData({ ...formData, metal_type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Gold 24K">Gold 24K</SelectItem><SelectItem value="Gold 22K">Gold 22K</SelectItem><SelectItem value="Gold 18K">Gold 18K</SelectItem><SelectItem value="Gold 14K">Gold 14K</SelectItem><SelectItem value="Silver 925">Silver 925</SelectItem><SelectItem value="Diamond">Diamond</SelectItem><SelectItem value="Platinum">Platinum</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label htmlFor="name">Product Name</Label><Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Gold Necklace" required /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Category</Label><Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Necklace">Necklace</SelectItem><SelectItem value="Ring">Ring</SelectItem><SelectItem value="Bangle">Bangle</SelectItem><SelectItem value="Earring">Earring</SelectItem><SelectItem value="Pendant">Pendant</SelectItem><SelectItem value="Anklet">Anklet</SelectItem><SelectItem value="Chain">Chain</SelectItem><SelectItem value="Bracelet">Bracelet</SelectItem><SelectItem value="Set">Set</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label htmlFor="weight">Weight (g)</Label><Input id="weight" type="number" step="0.01" value={formData.weight} onChange={(e) => setFormData({ ...formData, weight: e.target.value })} placeholder="45.5" required /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label htmlFor="stock">Stock</Label><Input id="stock" type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} placeholder="10" required /></div>
+              <div className="space-y-2"><Label htmlFor="price">Price (₹)</Label><Input id="price" type="number" value={formData.unit_price} onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })} placeholder="50000" required /></div>
+            </div>
+            {!editProduct && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 flex items-center gap-2">
+                <QrCode className="w-4 h-4 text-primary shrink-0" />
+                <p className="text-xs text-muted-foreground">Unique barcode will be auto-generated</p>
+              </div>
+            )}
+            <Button type="submit" variant="gold" className="w-full" disabled={isPending}>
+              {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {editProduct ? "Update Product" : "Add Product"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Product</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>{deleteConfirm?.name}</strong>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" disabled={deleteProductMutation.isPending} onClick={() => deleteConfirm && deleteProductMutation.mutate(deleteConfirm.id)}>
+              {deleteProductMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Barcode Dialog */}
       {barcodeProduct && (
