@@ -30,6 +30,7 @@ interface Product {
 const Inventory = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [metalFilter, setMetalFilter] = useState<string>("all");
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "",
@@ -69,12 +70,19 @@ const Inventory = () => {
     });
   };
 
-  const filteredProducts = products.filter(
-    (p) =>
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch =
       p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.barcode?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      p.barcode?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesMetal =
+      metalFilter === "all" ||
+      (metalFilter === "Gold" && p.metal_type?.toLowerCase().includes("gold")) ||
+      (metalFilter === "Silver" && p.metal_type?.toLowerCase().includes("silver")) ||
+      (metalFilter === "Diamond" && p.metal_type?.toLowerCase().includes("diamond")) ||
+      (metalFilter === "Platinum" && p.metal_type?.toLowerCase().includes("platinum"));
+    return matchesSearch && matchesMetal;
+  });
 
   const stats = {
     totalProducts: products.length,
@@ -142,9 +150,21 @@ const Inventory = () => {
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg"><Package className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />All Products</CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="relative flex-1 sm:flex-none"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Search or scan barcode..." className="pl-10 w-full sm:w-48 md:w-64" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
-              <Button variant="outline" size="icon" className="shrink-0 h-9 w-9 sm:h-10 sm:w-10"><Filter className="w-4 h-4" /></Button>
+              <Select value={metalFilter} onValueChange={setMetalFilter}>
+                <SelectTrigger className="w-[130px] h-9 sm:h-10">
+                  <Filter className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+                  <SelectValue placeholder="Metal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Metals</SelectItem>
+                  <SelectItem value="Gold">Gold</SelectItem>
+                  <SelectItem value="Silver">Silver</SelectItem>
+                  <SelectItem value="Diamond">Diamond</SelectItem>
+                  <SelectItem value="Platinum">Platinum</SelectItem>
+                </SelectContent>
+              </Select>
               <Button variant="outline" size="icon" className="shrink-0 h-9 w-9 sm:h-10 sm:w-10"><Download className="w-4 h-4" /></Button>
             </div>
           </div>
