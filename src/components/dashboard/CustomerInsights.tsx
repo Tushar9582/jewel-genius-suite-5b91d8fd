@@ -41,12 +41,12 @@ export function CustomerInsights({ customers = [], sales = [] }: { customers?: C
 
   const cityData = useMemo(() => {
     const m: Record<string, number> = {};
-    customers.forEach(c => { m[c.city || "Unknown"] = (m[c.city || "Unknown"] || 0) + 1; });
+    safeCustomers.forEach(c => { m[c.city || "Unknown"] = (m[c.city || "Unknown"] || 0) + 1; });
     return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([city, count]) => ({ city, count }));
-  }, [customers]);
+  }, [safeCustomers]);
 
-  const totalLoyalty = customers.reduce((a, c) => a + Number(c.loyalty_points || 0), 0);
-  const repeatBuyers = customers.filter(c => Number(c.total_purchases || 0) > 0).length;
+  const totalLoyalty = safeCustomers.reduce((a, c) => a + Number(c.loyalty_points || 0), 0);
+  const repeatBuyers = safeCustomers.filter(c => Number(c.total_purchases || 0) > 0).length;
 
   return (
     <Card variant="elevated">
