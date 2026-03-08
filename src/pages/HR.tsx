@@ -242,7 +242,7 @@ const HR = () => {
         name: formData.name,
         email: formData.email || null,
         phone: formData.phone || null,
-        department: formData.department || null,
+        department: null,
       };
 
       if (formData.password) {
@@ -250,6 +250,20 @@ const HR = () => {
       }
 
       await updateItem('employees', selectedEmployee!.id, updateData);
+
+      // Sync to Supabase via edge function
+      await supabase.functions.invoke('manage-employees', {
+        body: {
+          action: 'sync',
+          employee_id: selectedEmployee.employee_id,
+          name: formData.name,
+          email: formData.email || null,
+          phone: formData.phone || null,
+          department: null,
+          password_hash: formData.password || selectedEmployee.password_hash || '',
+          is_active: true,
+        },
+      });
 
       toast.success("Employee updated successfully");
       setEditDialogOpen(false);
