@@ -29,7 +29,7 @@ const Inventory = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({
-    sku: "", name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "",
+    name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "",
   });
   const queryClient = useQueryClient();
 
@@ -51,14 +51,17 @@ const Inventory = () => {
     onError: (error) => toast.error("Failed to add product: " + error.message),
   });
 
-  const resetForm = () => setFormData({ sku: "", name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "" });
+  const resetForm = () => setFormData({ name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "" });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const stock = parseInt(formData.stock);
     const status = stock === 0 ? "Out of Stock" : stock <= 5 ? "Low Stock" : "In Stock";
+    // Auto-generate SKU from metal type + timestamp
+    const metalPrefix = formData.metal_type.replace(/\s/g, "").substring(0, 3).toUpperCase();
+    const sku = `${metalPrefix}-${Date.now().toString(36).toUpperCase()}`;
     addProductMutation.mutate({
-      sku: formData.sku, name: formData.name, category: formData.category, metal_type: formData.metal_type,
+      sku, name: formData.name, category: formData.category, metal_type: formData.metal_type,
       weight: parseFloat(formData.weight), stock, unit_price: parseFloat(formData.unit_price), status,
     });
   };
@@ -98,15 +101,14 @@ const Inventory = () => {
               <DialogHeader><DialogTitle>Add New Product</DialogTitle></DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label htmlFor="sku">SKU</Label><Input id="sku" value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} placeholder="JW001" required /></div>
+                  <div className="space-y-2"><Label>Metal</Label><Select value={formData.metal_type} onValueChange={(v) => setFormData({ ...formData, metal_type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Gold 24K">Gold 24K</SelectItem><SelectItem value="Gold 22K">Gold 22K</SelectItem><SelectItem value="Gold 18K">Gold 18K</SelectItem><SelectItem value="Gold 14K">Gold 14K</SelectItem><SelectItem value="Silver 925">Silver 925</SelectItem><SelectItem value="Diamond">Diamond</SelectItem><SelectItem value="Platinum">Platinum</SelectItem></SelectContent></Select></div>
                   <div className="space-y-2"><Label htmlFor="name">Product Name</Label><Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Gold Necklace" required /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Category</Label><Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Necklace">Necklace</SelectItem><SelectItem value="Ring">Ring</SelectItem><SelectItem value="Bangle">Bangle</SelectItem><SelectItem value="Earring">Earring</SelectItem><SelectItem value="Pendant">Pendant</SelectItem><SelectItem value="Anklet">Anklet</SelectItem><SelectItem value="Chain">Chain</SelectItem></SelectContent></Select></div>
-                  <div className="space-y-2"><Label>Metal Type</Label><Select value={formData.metal_type} onValueChange={(v) => setFormData({ ...formData, metal_type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Gold 24K">Gold 24K</SelectItem><SelectItem value="Gold 22K">Gold 22K</SelectItem><SelectItem value="Gold 18K">Gold 18K</SelectItem><SelectItem value="Gold 14K">Gold 14K</SelectItem><SelectItem value="Silver 925">Silver 925</SelectItem><SelectItem value="Platinum">Platinum</SelectItem></SelectContent></Select></div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2"><Label>Category</Label><Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Necklace">Necklace</SelectItem><SelectItem value="Ring">Ring</SelectItem><SelectItem value="Bangle">Bangle</SelectItem><SelectItem value="Earring">Earring</SelectItem><SelectItem value="Pendant">Pendant</SelectItem><SelectItem value="Anklet">Anklet</SelectItem><SelectItem value="Chain">Chain</SelectItem><SelectItem value="Bracelet">Bracelet</SelectItem><SelectItem value="Set">Set</SelectItem></SelectContent></Select></div>
                   <div className="space-y-2"><Label htmlFor="weight">Weight (g)</Label><Input id="weight" type="number" step="0.01" value={formData.weight} onChange={(e) => setFormData({ ...formData, weight: e.target.value })} placeholder="45.5" required /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2"><Label htmlFor="stock">Stock</Label><Input id="stock" type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} placeholder="10" required /></div>
                   <div className="space-y-2"><Label htmlFor="price">Price (₹)</Label><Input id="price" type="number" value={formData.unit_price} onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })} placeholder="50000" required /></div>
                 </div>
