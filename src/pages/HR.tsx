@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAll, addItem, updateItem, deleteItem } from "@/lib/firebaseDb";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
   UserCog, 
@@ -111,6 +112,38 @@ const HR = () => {
       if (fixedCount > 0) {
         toast.success(`Fixed ${fixedCount} employee record(s) — passwords migrated successfully`);
       }
+
+      // Sync all Firebase employees to Supabase for edge function login
+      for (const emp of data) {
+        if (emp.employee_id && emp.password_hash) {
+          // Check if exists first
+          const { data: existing } = await supabase.from('employees')
+            .select('id')
+            .eq('employee_id', emp.employee_id)
+            .maybeSingle();
+          
+          if (existing) {
+            await supabase.from('employees').update({
+              name: emp.name,
+              email: emp.email || null,
+              phone: emp.phone || null,
+              department: emp.department || null,
+              password_hash: emp.password_hash,
+              is_active: emp.is_active !== false,
+            }).eq('id', existing.id);
+          } else {
+            await supabase.from('employees').insert({
+              employee_id: emp.employee_id,
+              name: emp.name,
+              email: emp.email || null,
+              phone: emp.phone || null,
+              department: emp.department || null,
+              password_hash: emp.password_hash,
+              is_active: emp.is_active !== false,
+            });
+          }
+        }
+      }
       
       setEmployees(data);
     } catch (error: any) {
@@ -147,7 +180,25 @@ const HR = () => {
     try {
       setSaving(true);
       const { password, ...rest } = formData;
+      
+      // Save to Firebase
       await addItem('employees', { ...rest, is_active: true, password_hash: password });
+      
+      // Also sync to Supabase for employee-auth edge function
+      const { data: existingEmp } = await supabase.from('employees')
+        .select('id').eq('employee_id', formData.employee_id).maybeSingle();
+      if (existingEmp) {
+        await supabase.from('employees').update({
+          name: formData.name, email: formData.email || null, phone: formData.phone || null,
+          department: formData.department || null, password_hash: password, is_active: true,
+        }).eq('id', existingEmp.id);
+      } else {
+        await supabase.from('employees').insert({
+          employee_id: formData.employee_id, name: formData.name, email: formData.email || null,
+          phone: formData.phone || null, department: formData.department || null,
+          password_hash: password, is_active: true,
+        });
+      }
 
       toast.success("Employee created successfully! They can now login with their Employee ID and password.");
       setCreateDialogOpen(false);
