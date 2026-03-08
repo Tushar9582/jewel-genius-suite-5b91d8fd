@@ -57,8 +57,11 @@ const Inventory = () => {
     e.preventDefault();
     const stock = parseInt(formData.stock);
     const status = stock === 0 ? "Out of Stock" : stock <= 5 ? "Low Stock" : "In Stock";
+    // Auto-generate SKU from metal type + timestamp
+    const metalPrefix = formData.metal_type.replace(/\s/g, "").substring(0, 3).toUpperCase();
+    const sku = `${metalPrefix}-${Date.now().toString(36).toUpperCase()}`;
     addProductMutation.mutate({
-      sku: formData.sku, name: formData.name, category: formData.category, metal_type: formData.metal_type,
+      sku, name: formData.name, category: formData.category, metal_type: formData.metal_type,
       weight: parseFloat(formData.weight), stock, unit_price: parseFloat(formData.unit_price), status,
     });
   };
