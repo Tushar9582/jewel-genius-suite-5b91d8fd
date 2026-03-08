@@ -58,6 +58,7 @@ interface Employee {
   phone: string | null;
   department: string | null;
   is_active: boolean;
+  password_hash?: string;
   created_at: string;
   updated_at: string;
 }
