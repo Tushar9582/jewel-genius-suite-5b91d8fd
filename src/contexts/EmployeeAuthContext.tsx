@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { signInAnonymously } from 'firebase/auth';
-import { ref, get } from 'firebase/database';
+import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
 import { auth, db } from '@/lib/firebase';
 
 interface Employee {
@@ -25,6 +25,9 @@ const SESSION_KEY = 'employee_session_token';
 
 type LocalEmployeeSession = {
   employee_id: string;
+  name: string;
+  email: string | null;
+  department: string | null;
   expires_at: string;
 };
 
@@ -70,33 +73,13 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      await ensureAuthForEmployeeLookup();
-
-      // Fetch employee data directly
-      const empRef = ref(db, `employees/${sessionData.employee_id}`);
-      const empSnapshot = await get(empRef);
-
-      if (!empSnapshot.exists()) {
-        localStorage.removeItem(SESSION_KEY);
-        setEmployee(null);
-        setLoading(false);
-        return;
-      }
-
-      const empData = empSnapshot.val();
-      if (empData?.is_active === false) {
-        localStorage.removeItem(SESSION_KEY);
-        setEmployee(null);
-        setLoading(false);
-        return;
-      }
-
+      // Restore session from local storage payload (no DB read needed)
       setEmployee({
         id: sessionData.employee_id,
-        employee_id: empData.employee_id,
-        name: empData.name,
-        email: empData.email || null,
-        department: empData.department || null,
+        employee_id: sessionData.employee_id,
+        name: sessionData.name,
+        email: sessionData.email,
+        department: sessionData.department,
       });
     } catch (error) {
       console.error('Session validation error:', error);
@@ -111,28 +94,21 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
     try {
       await ensureAuthForEmployeeLookup();
 
-      // Find employee by employee_id
+      // Find employee by employee_id with indexed query (avoids full-list permission issues)
       const employeesRef = ref(db, 'employees');
-      const snapshot = await get(employeesRef);
+      const employeeQuery = query(employeesRef, orderByChild('employee_id'), equalTo(employeeId));
+      const snapshot = await get(employeeQuery);
 
       if (!snapshot.exists()) {
-        return { error: new Error('No employees found') };
-      }
-
-      let foundEmployee: any = null;
-      let foundKey: string = '';
-
-      snapshot.forEach((child) => {
-        const emp = child.val();
-        if (emp.employee_id === employeeId) {
-          foundEmployee = emp;
-          foundKey = child.key!;
-        }
-      });
-
-      if (!foundEmployee) {
         return { error: new Error('Employee not found') };
       }
+
+      const first = Object.entries(snapshot.val() ?? {})[0] as [string, any] | undefined;
+      if (!first) {
+        return { error: new Error('Employee not found') };
+      }
+
+      const [foundKey, foundEmployee] = first;
 
       // Simple password check (in production, use proper hashing)
       if (foundEmployee.password_hash !== password) {
@@ -150,7 +126,10 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(
         SESSION_KEY,
         JSON.stringify({
-          employee_id: foundKey,
+          employee_id: foundEmployee.employee_id,
+          name: foundEmployee.name,
+          email: foundEmployee.email || null,
+          department: foundEmployee.department || null,
           expires_at: expiresAt.toISOString(),
         } satisfies LocalEmployeeSession)
       );
