@@ -21,6 +21,7 @@ interface Product {
   category: string;
   metal_type: string;
   weight: number;
+  purchase_price: number;
   unit_price: number;
   stock: number;
   status: string;
