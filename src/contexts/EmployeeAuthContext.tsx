@@ -70,6 +70,8 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      await ensureAuthForEmployeeLookup();
+
       // Fetch employee data directly
       const empRef = ref(db, `employees/${sessionData.employee_id}`);
       const empSnapshot = await get(empRef);
