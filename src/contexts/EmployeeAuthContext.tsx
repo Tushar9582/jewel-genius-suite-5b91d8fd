@@ -94,28 +94,21 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
     try {
       await ensureAuthForEmployeeLookup();
 
-      // Find employee by employee_id
+      // Find employee by employee_id with indexed query (avoids full-list permission issues)
       const employeesRef = ref(db, 'employees');
-      const snapshot = await get(employeesRef);
+      const employeeQuery = query(employeesRef, orderByChild('employee_id'), equalTo(employeeId));
+      const snapshot = await get(employeeQuery);
 
       if (!snapshot.exists()) {
-        return { error: new Error('No employees found') };
-      }
-
-      let foundEmployee: any = null;
-      let foundKey: string = '';
-
-      snapshot.forEach((child) => {
-        const emp = child.val();
-        if (emp.employee_id === employeeId) {
-          foundEmployee = emp;
-          foundKey = child.key!;
-        }
-      });
-
-      if (!foundEmployee) {
         return { error: new Error('Employee not found') };
       }
+
+      const first = Object.entries(snapshot.val() ?? {})[0] as [string, any] | undefined;
+      if (!first) {
+        return { error: new Error('Employee not found') };
+      }
+
+      const [foundKey, foundEmployee] = first;
 
       // Simple password check (in production, use proper hashing)
       if (foundEmployee.password_hash !== password) {
