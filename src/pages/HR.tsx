@@ -96,7 +96,22 @@ const HR = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const data = await getAll<Employee>('employees');
+      const data = await getAll<any>('employees');
+      
+      // Auto-fix: migrate password -> password_hash for existing records
+      let fixedCount = 0;
+      for (const emp of data) {
+        if (emp.password && !emp.password_hash) {
+          await updateItem('employees', emp.id, { password_hash: emp.password, password: null });
+          emp.password_hash = emp.password;
+          delete emp.password;
+          fixedCount++;
+        }
+      }
+      if (fixedCount > 0) {
+        toast.success(`Fixed ${fixedCount} employee record(s) — passwords migrated successfully`);
+      }
+      
       setEmployees(data);
     } catch (error: any) {
       console.error("Error fetching employees:", error);
