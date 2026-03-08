@@ -30,7 +30,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function SalesChart({ sales }: { sales: Sale[] }) {
+export function SalesChart({ sales = [] }: { sales?: Sale[] }) {
+  const safeSales = Array.isArray(sales) ? sales : [];
   const data = useMemo(() => {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const now = new Date();
