@@ -36,6 +36,16 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
     validateSession();
   }, []);
 
+  const ensureAuthForEmployeeLookup = async () => {
+    if (!auth.currentUser) {
+      try {
+        await signInAnonymously(auth);
+      } catch (error) {
+        console.error('Anonymous auth failed:', error);
+      }
+    }
+  };
+
   const validateSession = async () => {
     const sessionRaw = localStorage.getItem(SESSION_KEY);
     if (!sessionRaw) {
