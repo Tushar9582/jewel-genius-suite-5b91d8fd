@@ -112,6 +112,7 @@ const Inventory = () => {
       metal_type: product.metal_type,
       weight: String(product.weight),
       stock: String(product.stock),
+      purchase_price: String(product.purchase_price || ""),
       unit_price: String(product.unit_price),
     });
   };
