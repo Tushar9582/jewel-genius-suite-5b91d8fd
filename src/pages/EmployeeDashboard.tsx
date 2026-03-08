@@ -4,7 +4,7 @@ import { useEmployeeAuth } from "@/contexts/EmployeeAuthContext";
 import { Package, ShoppingCart, User, TrendingUp, Loader2, Box, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { getAll } from "@/lib/firebaseDb";
+import { employeeGetAll } from "@/lib/employeeFirebaseProxy";
 import { MetalPriceCard } from "@/components/dashboard/MetalPriceCard";
 
 interface Product {
