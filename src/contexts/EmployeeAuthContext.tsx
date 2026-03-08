@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { ref, get, query, orderByChild, equalTo, set, remove } from 'firebase/database';
+import { ref, get } from 'firebase/database';
 import { db } from '@/lib/firebase';
 
 interface Employee {
