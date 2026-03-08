@@ -238,6 +238,9 @@ export function EmployeeManagement() {
     try {
       setSaving(true);
       await deleteItem('employees', selectedEmployee.id);
+      await supabase.functions.invoke('manage-employees', {
+        body: { action: 'delete', id: selectedEmployee.id },
+      });
 
       toast.success("Employee deleted successfully");
       setDeleteDialogOpen(false);
