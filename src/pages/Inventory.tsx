@@ -29,7 +29,7 @@ interface Product {
   status: string;
 }
 
-const emptyForm = { name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", unit_price: "" };
+const emptyForm = { name: "", category: "Necklace", metal_type: "Gold 22K", weight: "", stock: "", purchase_price: "", unit_price: "" };
 
 const Inventory = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
