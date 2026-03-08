@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, Barcode, Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, Loader2 } from "lucide-react";
+import { ShoppingCart, Barcode, Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, Loader2, Calculator } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { GoldRateCalculator } from "@/components/pos/GoldRateCalculator";
 import { toast } from "sonner";
 import { getAll, addItem, updateItem } from "@/lib/firebaseDb";
 
@@ -246,6 +247,19 @@ const POS = () => {
         </div>
 
         <div className="space-y-4 sm:space-y-6">
+          {/* Gold Rate Calculator */}
+          <Card variant="elevated">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Calculator className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                Gold Rate Calculator
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GoldRateCalculator />
+            </CardContent>
+          </Card>
+
           <Card variant="gold">
             <CardHeader className="pb-3 sm:pb-4">
               <CardTitle className="text-base sm:text-lg">Payment Summary</CardTitle>
