@@ -131,7 +131,7 @@ const EmployeePOS = () => {
       const total = subtotal + tax;
       const invoiceNumber = `INV-${Date.now()}`;
 
-      await addItem("sales", {
+      await employeeAddItem("sales", {
         invoice_number: invoiceNumber,
         items: cart.map((item) => ({ product_id: item.id, name: item.name, qty: item.qty, price: item.unit_price, calculated: item.calculatedPrice || false, purity: item.purity || null })),
         subtotal, tax, discount: 0, total,
