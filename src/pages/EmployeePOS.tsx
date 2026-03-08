@@ -11,7 +11,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GoldRateCalculator, type ProductForCalc, type CalcResult } from "@/components/pos/GoldRateCalculator";
 import { toast } from "sonner";
-import { getAll, addItem, updateItem } from "@/lib/firebaseDb";
+import { employeeGetAll, employeeAddItem, employeeUpdateItem } from "@/lib/employeeFirebaseProxy";
 import { useEmployeeAuth } from "@/contexts/EmployeeAuthContext";
 
 interface Product {
@@ -56,7 +56,7 @@ const EmployeePOS = () => {
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["emp-pos-products"],
     queryFn: async () => {
-      const all = await getAll<Product>("products");
+      const all = await employeeGetAll<Product>("products");
       return all.filter((p) => p.stock > 0).sort((a, b) => a.name.localeCompare(b.name));
     },
   });
@@ -131,7 +131,7 @@ const EmployeePOS = () => {
       const total = subtotal + tax;
       const invoiceNumber = `INV-${Date.now()}`;
 
-      await addItem("sales", {
+      await employeeAddItem("sales", {
         invoice_number: invoiceNumber,
         items: cart.map((item) => ({ product_id: item.id, name: item.name, qty: item.qty, price: item.unit_price, calculated: item.calculatedPrice || false, purity: item.purity || null })),
         subtotal, tax, discount: 0, total,
@@ -143,7 +143,7 @@ const EmployeePOS = () => {
 
       for (const item of cart) {
         if (!item.id.startsWith("calc-")) {
-          await updateItem("products", item.id, { stock: item.stock - item.qty });
+          await employeeUpdateItem("products", item.id, { stock: item.stock - item.qty });
         }
       }
       return invoiceNumber;

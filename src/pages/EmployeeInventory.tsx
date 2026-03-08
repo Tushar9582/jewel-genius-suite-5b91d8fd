@@ -7,7 +7,7 @@ import { Package, Search, Filter, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
-import { getAll } from "@/lib/firebaseDb";
+import { employeeGetAll } from "@/lib/employeeFirebaseProxy";
 
 interface Product {
   id: string;
@@ -28,7 +28,7 @@ const EmployeeInventory = () => {
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["emp-products"],
-    queryFn: () => getAll<Product>("products"),
+    queryFn: () => employeeGetAll<Product>("products"),
   });
 
   const filteredProducts = products.filter((p) => {
