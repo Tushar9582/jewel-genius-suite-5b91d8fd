@@ -204,7 +204,11 @@ export function GoldRateCalculator({
         makingCharges: res.makingTotal,
         gst: res.gst,
       });
-      toast.success("Added to cart with calculated price!");
+      // Remove item from calculator after adding to bill
+      setItems((prev) => {
+        const remaining = prev.filter((i) => i.id !== item.id);
+        return remaining.length === 0 ? [defaultItem()] : remaining;
+      });
     },
     [onAddToCart]
   );
@@ -431,17 +435,23 @@ export function GoldRateCalculator({
                         </div>
                       </div>
 
-                      {/* Add to Cart button — only when connected to POS */}
-                      {onAddToCart && isProductLinked && (
-                        <Button
-                          variant="gold"
-                          size="sm"
-                          className="w-full mt-2 text-xs"
-                          onClick={() => handleAddToCart(item)}
+                      {/* Add to Bill button — always show when onAddToCart is available */}
+                      {onAddToCart && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="pt-2"
                         >
-                          <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
-                          Add to Cart — ₹{fmt(res.total)}
-                        </Button>
+                          <Button
+                            variant="gold"
+                            size="lg"
+                            className="w-full text-sm font-semibold"
+                            onClick={() => handleAddToCart(item)}
+                          >
+                            <ShoppingCart className="h-4 w-4 mr-2" />
+                            Add to Bill — ₹{fmt(res.total)}
+                          </Button>
+                        </motion.div>
                       )}
                     </motion.div>
                   )}

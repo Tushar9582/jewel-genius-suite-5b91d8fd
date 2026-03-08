@@ -129,40 +129,57 @@ const POS = () => {
   const handleCalcAddToCart = useCallback(
     (result: CalcResult) => {
       const product = products.find((p) => p.id === result.productId);
-      if (!product) {
-        toast.error("Product not found in inventory");
-        return;
-      }
-      const existing = cart.find((item) => item.id === product.id);
-      if (existing) {
-        if (existing.qty >= product.stock) {
-          toast.error("Not enough stock available");
-          return;
+      
+      // For inventory-linked products
+      if (product) {
+        const existing = cart.find((item) => item.id === product.id);
+        if (existing) {
+          if (existing.qty >= product.stock) {
+            toast.error("Not enough stock available");
+            return;
+          }
+          setCart(
+            cart.map((item) =>
+              item.id === product.id
+                ? { ...item, unit_price: result.calculatedPrice, qty: item.qty + 1, calculatedPrice: true, purity: result.purity }
+                : item
+            )
+          );
+        } else {
+          setCart([
+            ...cart,
+            {
+              id: product.id,
+              name: product.name,
+              weight: result.weight,
+              unit_price: result.calculatedPrice,
+              stock: product.stock,
+              qty: 1,
+              sku: product.sku,
+              calculatedPrice: true,
+              purity: result.purity,
+            },
+          ]);
         }
-        // Update with new calculated price
-        setCart(
-          cart.map((item) =>
-            item.id === product.id
-              ? { ...item, unit_price: result.calculatedPrice, qty: item.qty + 1, calculatedPrice: true, purity: result.purity }
-              : item
-          )
-        );
       } else {
+        // For custom/manual calculator items (not linked to inventory)
+        const customId = `calc-${Date.now()}`;
         setCart([
           ...cart,
           {
-            id: product.id,
-            name: product.name,
+            id: customId,
+            name: result.productName,
             weight: result.weight,
             unit_price: result.calculatedPrice,
-            stock: product.stock,
+            stock: 9999, // no stock limit for custom
             qty: 1,
-            sku: product.sku,
+            sku: "CUSTOM",
             calculatedPrice: true,
             purity: result.purity,
           },
         ]);
       }
+      toast.success(`₹${result.calculatedPrice.toLocaleString()} added to bill!`);
     },
     [cart, products]
   );
