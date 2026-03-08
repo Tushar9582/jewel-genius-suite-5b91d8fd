@@ -656,22 +656,6 @@ const HR = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit_department">Department</Label>
-              <Select
-                value={formData.department}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, department: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="edit_email">Email</Label>
               <Input
                 id="edit_email"
