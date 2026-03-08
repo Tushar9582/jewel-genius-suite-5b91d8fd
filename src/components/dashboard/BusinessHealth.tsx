@@ -15,9 +15,12 @@ const fmt = (v: number) => {
   return `₹${v.toLocaleString("en-IN")}`;
 };
 
-export function BusinessHealth({ sales, products, customers, investments }: {
-  sales: Sale[]; products: Product[]; customers: Customer[]; investments: Investment[];
+export function BusinessHealth({ sales = [], products = [], customers = [], investments = [] }: {
+  sales?: Sale[]; products?: Product[]; customers?: Customer[]; investments?: Investment[];
 }) {
+  const safeSales = Array.isArray(sales) ? sales : [];
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeInvestments = Array.isArray(investments) ? investments : [];
   const data = useMemo(() => {
     // Metal weight breakdown
     const metalWeight: Record<string, number> = {};

@@ -42,12 +42,12 @@ export function SalesChart({ sales = [] }: { sales?: Sale[] }) {
       d.setDate(d.getDate() - i);
       const dayStr = d.toDateString();
       const dayName = days[d.getDay()];
-      const daySales = sales.filter(s => new Date(s.created_at).toDateString() === dayStr);
+      const daySales = safeSales.filter(s => new Date(s.created_at).toDateString() === dayStr);
       const revenue = daySales.reduce((a, s) => a + Number(s.total || 0), 0);
       result.push({ name: dayName, revenue, count: daySales.length });
     }
     return result;
-  }, [sales]);
+  }, [safeSales]);
 
   const totalWeek = data.reduce((a, d) => a + d.revenue, 0);
   const totalOrders = data.reduce((a, d) => a + d.count, 0);

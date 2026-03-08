@@ -56,7 +56,7 @@ export function CustomerInsights({ customers = [], sales = [] }: { customers?: C
           Customer Insights
         </CardTitle>
         <div className="flex gap-3 text-xs text-muted-foreground mt-1">
-          <span>{customers.length} total</span>
+          <span>{safeCustomers.length} total</span>
           <span>•</span>
           <span>{repeatBuyers} active buyers</span>
           <span>•</span>
