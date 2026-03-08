@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAll, addItem, updateItem, deleteItem } from "@/lib/firebaseDb";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
   Users, 
