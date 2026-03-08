@@ -55,7 +55,7 @@ export function BusinessHealth({ sales = [], products = [], customers = [], inve
       profit, profitPct, totalInvested, totalCurrent,
       stockHealth, lowStock, outStock,
     };
-  }, [sales, products, customers, investments]);
+  }, [safeSales, safeProducts, safeInvestments]);
 
   return (
     <Card variant="elevated">
