@@ -7,15 +7,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Simple password hashing using Web Crypto API
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 // Generate a secure session token
 function generateSessionToken(): string {
   const array = new Uint8Array(32);
@@ -36,11 +27,16 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const action = url.searchParams.get("action");
+    const body = await req.json();
+    
+    // Determine action from query param OR body
+    const action = url.searchParams.get("action") || body.action || 
+      (body.employee_id && body.password ? "login" : 
+       body.session_token ? "validate" : null);
 
     // Login action
     if (req.method === "POST" && action === "login") {
-      const { employee_id, password } = await req.json();
+      const { employee_id, password } = body;
 
       if (!employee_id || !password) {
         return new Response(
@@ -72,9 +68,9 @@ serve(async (req) => {
         );
       }
 
-      // Verify password
-      const passwordHash = await hashPassword(password);
-      if (passwordHash !== employee.password_hash) {
+      // Verify password - compare plain text directly with stored password_hash
+      // (passwords are stored as plain text from the HR panel)
+      if (employee.password_hash !== password) {
         return new Response(
           JSON.stringify({ error: "Invalid credentials" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -127,7 +123,7 @@ serve(async (req) => {
 
     // Validate session action
     if (req.method === "POST" && action === "validate") {
-      const { session_token } = await req.json();
+      const { session_token } = body;
 
       if (!session_token) {
         return new Response(
@@ -178,7 +174,7 @@ serve(async (req) => {
 
     // Logout action
     if (req.method === "POST" && action === "logout") {
-      const { session_token } = await req.json();
+      const { session_token } = body;
 
       if (session_token) {
         await supabaseAdmin
