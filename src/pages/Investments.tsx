@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getAll, addItem } from "@/lib/firebaseDb";
+import { MetalPriceCard } from "@/components/dashboard/MetalPriceCard";
 
 interface Investment {
   id: string;
