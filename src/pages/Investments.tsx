@@ -142,21 +142,7 @@ const Investments = () => {
           </Card>
         </div>
 
-        <Card variant="gold">
-          <CardHeader className="pb-3 sm:pb-4"><CardTitle className="flex items-center gap-2 text-base sm:text-lg"><BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />Live Metal Prices</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-3 sm:space-y-4">
-              {metalPrices.map((metal) => (
-                <div key={metal.metal} className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg bg-background/50">
-                  <div><p className="font-medium text-sm sm:text-base">{metal.metal}</p><p className="text-base sm:text-lg font-bold">{metal.price}</p></div>
-                  <Badge variant={metal.positive ? "default" : "destructive"} className="flex items-center gap-1 text-xs">
-                    {metal.positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}{metal.change}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <MetalPriceCard />
       </div>
     </DashboardLayout>
   );
