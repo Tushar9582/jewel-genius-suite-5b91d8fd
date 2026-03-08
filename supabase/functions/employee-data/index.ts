@@ -34,17 +34,13 @@ async function getFirebaseIdToken(): Promise<string> {
   );
 
   const data = await res.json();
-  console.log("Firebase Auth response status:", res.status);
-  console.log("Firebase Auth has idToken:", !!data.idToken);
   if (data.error) {
     console.error("Firebase Auth error:", JSON.stringify(data.error));
     throw new Error(data.error.message || "Firebase auth failed");
   }
 
   cachedToken = data.idToken;
-  // Token expires in ~1 hour, refresh at 50 min
   tokenExpiry = Date.now() + 50 * 60 * 1000;
-  console.log("Got Firebase token, length:", cachedToken?.length);
   return cachedToken!;
 }
 
