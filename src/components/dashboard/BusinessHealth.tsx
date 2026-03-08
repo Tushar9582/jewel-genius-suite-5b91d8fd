@@ -15,13 +15,16 @@ const fmt = (v: number) => {
   return `₹${v.toLocaleString("en-IN")}`;
 };
 
-export function BusinessHealth({ sales, products, customers, investments }: {
-  sales: Sale[]; products: Product[]; customers: Customer[]; investments: Investment[];
+export function BusinessHealth({ sales = [], products = [], customers = [], investments = [] }: {
+  sales?: Sale[]; products?: Product[]; customers?: Customer[]; investments?: Investment[];
 }) {
+  const safeSales = Array.isArray(sales) ? sales : [];
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeInvestments = Array.isArray(investments) ? investments : [];
   const data = useMemo(() => {
     // Metal weight breakdown
     const metalWeight: Record<string, number> = {};
-    products.forEach(p => {
+    safeProducts.forEach(p => {
       const w = Number(p.weight || 0) * Number(p.stock || 0);
       metalWeight[p.metal_type] = (metalWeight[p.metal_type] || 0) + w;
     });
@@ -29,20 +32,20 @@ export function BusinessHealth({ sales, products, customers, investments }: {
 
     // Payment method breakdown
     const payMethod: Record<string, number> = {};
-    sales.forEach(s => { payMethod[s.payment_method || "Cash"] = (payMethod[s.payment_method || "Cash"] || 0) + Number(s.total || 0); });
+    safeSales.forEach(s => { payMethod[s.payment_method || "Cash"] = (payMethod[s.payment_method || "Cash"] || 0) + Number(s.total || 0); });
     const totalPayment = Object.values(payMethod).reduce((a, b) => a + b, 0) || 1;
 
     // Investment profit
-    const totalInvested = investments.reduce((a, i) => a + Number(i.invested_amount || 0), 0);
-    const totalCurrent = investments.reduce((a, i) => a + Number(i.current_value || 0), 0);
+    const totalInvested = safeInvestments.reduce((a, i) => a + Number(i.invested_amount || 0), 0);
+    const totalCurrent = safeInvestments.reduce((a, i) => a + Number(i.current_value || 0), 0);
     const profit = totalCurrent - totalInvested;
     const profitPct = totalInvested > 0 ? ((profit / totalInvested) * 100).toFixed(1) : "0";
 
     // Stock health
-    const lowStock = products.filter(p => p.stock > 0 && p.stock <= 5).length;
-    const outStock = products.filter(p => p.stock === 0).length;
-    const healthyStock = products.length - lowStock - outStock;
-    const stockHealth = products.length > 0 ? Math.round((healthyStock / products.length) * 100) : 100;
+    const lowStock = safeProducts.filter(p => p.stock > 0 && p.stock <= 5).length;
+    const outStock = safeProducts.filter(p => p.stock === 0).length;
+    const healthyStock = safeProducts.length - lowStock - outStock;
+    const stockHealth = safeProducts.length > 0 ? Math.round((healthyStock / safeProducts.length) * 100) : 100;
 
     return {
       metalWeight: Object.entries(metalWeight).sort((a, b) => b[1] - a[1]).slice(0, 4),
@@ -52,7 +55,7 @@ export function BusinessHealth({ sales, products, customers, investments }: {
       profit, profitPct, totalInvested, totalCurrent,
       stockHealth, lowStock, outStock,
     };
-  }, [sales, products, customers, investments]);
+  }, [safeSales, safeProducts, safeInvestments]);
 
   return (
     <Card variant="elevated">

@@ -11,22 +11,23 @@ interface Product {
   category: string;
 }
 
-export function InventoryAlerts({ products }: { products: Product[] }) {
+export function InventoryAlerts({ products = [] }: { products?: Product[] }) {
+  const safeProducts = Array.isArray(products) ? products : [];
   const alerts = useMemo(() => {
     const items: { id: string; title: string; description: string; priority: "high" | "medium"; icon: typeof AlertTriangle }[] = [];
 
-    const outOfStock = products.filter(p => p.stock === 0);
+    const outOfStock = safeProducts.filter(p => p.stock === 0);
     outOfStock.forEach(p => {
       items.push({ id: p.id + "-oos", title: p.name, description: `Out of stock • ${p.metal_type} ${p.category}`, priority: "high", icon: XCircle });
     });
 
-    const lowStock = products.filter(p => p.stock > 0 && p.stock <= 5);
+    const lowStock = safeProducts.filter(p => p.stock > 0 && p.stock <= 5);
     lowStock.forEach(p => {
       items.push({ id: p.id + "-low", title: p.name, description: `Only ${p.stock} left • ${p.metal_type}`, priority: "medium", icon: AlertTriangle });
     });
 
     return items.slice(0, 5);
-  }, [products]);
+  }, [safeProducts]);
 
   const urgentCount = alerts.filter(a => a.priority === "high").length;
 

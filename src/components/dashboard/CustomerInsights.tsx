@@ -31,20 +31,22 @@ const getTier = (tp: number) => {
   return { tier: "Bronze", cls: "bg-secondary text-muted-foreground" };
 };
 
-export function CustomerInsights({ customers, sales }: { customers: Customer[]; sales: Sale[] }) {
+export function CustomerInsights({ customers = [], sales = [] }: { customers?: Customer[]; sales?: Sale[] }) {
+  const safeCustomers = Array.isArray(customers) ? customers : [];
+  const safeSales = Array.isArray(sales) ? sales : [];
   const topCustomers = useMemo(() =>
-    [...customers].sort((a, b) => Number(b.total_purchases || 0) - Number(a.total_purchases || 0)).slice(0, 5),
-    [customers]
+    [...safeCustomers].sort((a, b) => Number(b.total_purchases || 0) - Number(a.total_purchases || 0)).slice(0, 5),
+    [safeCustomers]
   );
 
   const cityData = useMemo(() => {
     const m: Record<string, number> = {};
-    customers.forEach(c => { m[c.city || "Unknown"] = (m[c.city || "Unknown"] || 0) + 1; });
+    safeCustomers.forEach(c => { m[c.city || "Unknown"] = (m[c.city || "Unknown"] || 0) + 1; });
     return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([city, count]) => ({ city, count }));
-  }, [customers]);
+  }, [safeCustomers]);
 
-  const totalLoyalty = customers.reduce((a, c) => a + Number(c.loyalty_points || 0), 0);
-  const repeatBuyers = customers.filter(c => Number(c.total_purchases || 0) > 0).length;
+  const totalLoyalty = safeCustomers.reduce((a, c) => a + Number(c.loyalty_points || 0), 0);
+  const repeatBuyers = safeCustomers.filter(c => Number(c.total_purchases || 0) > 0).length;
 
   return (
     <Card variant="elevated">
@@ -54,7 +56,7 @@ export function CustomerInsights({ customers, sales }: { customers: Customer[]; 
           Customer Insights
         </CardTitle>
         <div className="flex gap-3 text-xs text-muted-foreground mt-1">
-          <span>{customers.length} total</span>
+          <span>{safeCustomers.length} total</span>
           <span>•</span>
           <span>{repeatBuyers} active buyers</span>
           <span>•</span>

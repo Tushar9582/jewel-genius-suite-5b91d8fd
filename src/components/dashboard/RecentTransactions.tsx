@@ -25,9 +25,10 @@ function timeAgo(dateStr: string) {
   return `${days}d ago`;
 }
 
-export function RecentTransactions({ sales }: { sales: Sale[] }) {
+export function RecentTransactions({ sales = [] }: { sales?: Sale[] }) {
   const navigate = useNavigate();
-  const recent = [...sales]
+  const safeSales = Array.isArray(sales) ? sales : [];
+  const recent = [...safeSales]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 6);
 
