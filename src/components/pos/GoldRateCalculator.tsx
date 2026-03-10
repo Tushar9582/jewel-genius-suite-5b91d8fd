@@ -23,7 +23,7 @@ import {
   Gem,
   IndianRupee,
   Percent,
-  Sparkles,
+  
   ShoppingCart,
 } from "lucide-react";
 import { toast } from "sonner";
