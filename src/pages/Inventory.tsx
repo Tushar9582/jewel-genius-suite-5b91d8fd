@@ -84,13 +84,17 @@ const Inventory = () => {
     e.preventDefault();
     const stock = parseInt(formData.stock);
     const status = stock === 0 ? "Out of Stock" : stock <= 5 ? "Low Stock" : "In Stock";
+    const isImitation = formData.metal_type === "Imitation";
 
     if (editProduct) {
       updateProductMutation.mutate({
         id: editProduct.id,
         data: {
           name: formData.name, category: formData.category, metal_type: formData.metal_type,
-          weight: parseFloat(formData.weight), stock, purchase_price: parseFloat(formData.purchase_price), unit_price: parseFloat(formData.unit_price), status,
+          weight: parseFloat(formData.weight), stock,
+          purchase_price: isImitation ? parseFloat(formData.purchase_price) : 0,
+          unit_price: isImitation ? parseFloat(formData.unit_price) : 0,
+          status,
         },
       });
     } else {
@@ -99,7 +103,10 @@ const Inventory = () => {
       const sku = `${metalPrefix}-${Date.now().toString(36).toUpperCase()}`;
       addProductMutation.mutate({
         sku, barcode, name: formData.name, category: formData.category, metal_type: formData.metal_type,
-        weight: parseFloat(formData.weight), stock, purchase_price: parseFloat(formData.purchase_price), unit_price: parseFloat(formData.unit_price), status,
+        weight: parseFloat(formData.weight), stock,
+        purchase_price: isImitation ? parseFloat(formData.purchase_price) : 0,
+        unit_price: isImitation ? parseFloat(formData.unit_price) : 0,
+        status,
       });
     }
   };
@@ -281,7 +288,7 @@ const Inventory = () => {
           <DialogHeader><DialogTitle>{editProduct ? "Edit Product" : "Add New Product"}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Metal</Label><Select value={formData.metal_type} onValueChange={(v) => setFormData({ ...formData, metal_type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Gold 24K">Gold 24K</SelectItem><SelectItem value="Gold 22K">Gold 22K</SelectItem><SelectItem value="Gold 18K">Gold 18K</SelectItem><SelectItem value="Gold 14K">Gold 14K</SelectItem><SelectItem value="Silver 925">Silver 925</SelectItem><SelectItem value="Diamond">Diamond</SelectItem><SelectItem value="Platinum">Platinum</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>Metal</Label><Select value={formData.metal_type} onValueChange={(v) => setFormData({ ...formData, metal_type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Gold 24K">Gold 24K</SelectItem><SelectItem value="Gold 22K">Gold 22K</SelectItem><SelectItem value="Gold 18K">Gold 18K</SelectItem><SelectItem value="Gold 14K">Gold 14K</SelectItem><SelectItem value="Silver 925">Silver 925</SelectItem><SelectItem value="Diamond">Diamond</SelectItem><SelectItem value="Platinum">Platinum</SelectItem><SelectItem value="Imitation">Imitation</SelectItem></SelectContent></Select></div>
               <div className="space-y-2"><Label htmlFor="name">Product Name</Label><Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Gold Necklace" required /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -290,19 +297,23 @@ const Inventory = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label htmlFor="stock">Stock</Label><Input id="stock" type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} placeholder="10" required /></div>
-              <div className="space-y-2"><Label htmlFor="purchase_price">Purchase Price (₹)</Label><Input id="purchase_price" type="number" value={formData.purchase_price} onChange={(e) => setFormData({ ...formData, purchase_price: e.target.value })} placeholder="40000" required /></div>
+              {formData.metal_type === "Imitation" && (
+                <div className="space-y-2"><Label htmlFor="purchase_price">Purchase Price (₹)</Label><Input id="purchase_price" type="number" value={formData.purchase_price} onChange={(e) => setFormData({ ...formData, purchase_price: e.target.value })} placeholder="500" required /></div>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label htmlFor="price">Selling Price (₹)</Label><Input id="price" type="number" value={formData.unit_price} onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })} placeholder="50000" required /></div>
-              <div className="space-y-2 flex flex-col justify-end">
-                <Label className="text-xs text-muted-foreground">Profit Margin</Label>
-                <div className="h-9 flex items-center px-3 rounded-md border bg-muted/50 text-sm font-semibold text-emerald-600">
-                  {formData.purchase_price && formData.unit_price
-                    ? `₹${(parseFloat(formData.unit_price) - parseFloat(formData.purchase_price)).toLocaleString()} (${(((parseFloat(formData.unit_price) - parseFloat(formData.purchase_price)) / parseFloat(formData.purchase_price)) * 100).toFixed(1)}%)`
-                    : "—"}
+            {formData.metal_type === "Imitation" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label htmlFor="price">Selling Price (₹)</Label><Input id="price" type="number" value={formData.unit_price} onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })} placeholder="1000" required /></div>
+                <div className="space-y-2 flex flex-col justify-end">
+                  <Label className="text-xs text-muted-foreground">Profit Margin</Label>
+                  <div className="h-9 flex items-center px-3 rounded-md border bg-muted/50 text-sm font-semibold text-emerald-600">
+                    {formData.purchase_price && formData.unit_price
+                      ? `₹${(parseFloat(formData.unit_price) - parseFloat(formData.purchase_price)).toLocaleString()} (${(((parseFloat(formData.unit_price) - parseFloat(formData.purchase_price)) / parseFloat(formData.purchase_price)) * 100).toFixed(1)}%)`
+                      : "—"}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             {!editProduct && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 flex items-center gap-2">
                 <QrCode className="w-4 h-4 text-primary shrink-0" />
