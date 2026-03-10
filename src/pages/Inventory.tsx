@@ -290,19 +290,23 @@ const Inventory = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label htmlFor="stock">Stock</Label><Input id="stock" type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} placeholder="10" required /></div>
-              <div className="space-y-2"><Label htmlFor="purchase_price">Purchase Price (₹)</Label><Input id="purchase_price" type="number" value={formData.purchase_price} onChange={(e) => setFormData({ ...formData, purchase_price: e.target.value })} placeholder="40000" required /></div>
+              {formData.metal_type === "Imitation" && (
+                <div className="space-y-2"><Label htmlFor="purchase_price">Purchase Price (₹)</Label><Input id="purchase_price" type="number" value={formData.purchase_price} onChange={(e) => setFormData({ ...formData, purchase_price: e.target.value })} placeholder="500" required /></div>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label htmlFor="price">Selling Price (₹)</Label><Input id="price" type="number" value={formData.unit_price} onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })} placeholder="50000" required /></div>
-              <div className="space-y-2 flex flex-col justify-end">
-                <Label className="text-xs text-muted-foreground">Profit Margin</Label>
-                <div className="h-9 flex items-center px-3 rounded-md border bg-muted/50 text-sm font-semibold text-emerald-600">
-                  {formData.purchase_price && formData.unit_price
-                    ? `₹${(parseFloat(formData.unit_price) - parseFloat(formData.purchase_price)).toLocaleString()} (${(((parseFloat(formData.unit_price) - parseFloat(formData.purchase_price)) / parseFloat(formData.purchase_price)) * 100).toFixed(1)}%)`
-                    : "—"}
+            {formData.metal_type === "Imitation" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label htmlFor="price">Selling Price (₹)</Label><Input id="price" type="number" value={formData.unit_price} onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })} placeholder="1000" required /></div>
+                <div className="space-y-2 flex flex-col justify-end">
+                  <Label className="text-xs text-muted-foreground">Profit Margin</Label>
+                  <div className="h-9 flex items-center px-3 rounded-md border bg-muted/50 text-sm font-semibold text-emerald-600">
+                    {formData.purchase_price && formData.unit_price
+                      ? `₹${(parseFloat(formData.unit_price) - parseFloat(formData.purchase_price)).toLocaleString()} (${(((parseFloat(formData.unit_price) - parseFloat(formData.purchase_price)) / parseFloat(formData.purchase_price)) * 100).toFixed(1)}%)`
+                      : "—"}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             {!editProduct && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 flex items-center gap-2">
                 <QrCode className="w-4 h-4 text-primary shrink-0" />

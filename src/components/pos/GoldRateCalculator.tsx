@@ -328,35 +328,6 @@ export function GoldRateCalculator({
                     </div>
                   </div>
 
-                  {/* Purity */}
-                  <div className="space-y-1.5">
-                    <Label className="flex items-center gap-1.5 text-xs">
-                      <Sparkles className="h-3 w-3 text-primary" />
-                      Purity
-                      {isProductLinked && (
-                        <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1">
-                          Auto
-                        </Badge>
-                      )}
-                    </Label>
-                    <Select
-                      value={item.purity}
-                      onValueChange={(v) =>
-                        updateItem(item.id, { purity: v })
-                      }
-                    >
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(PURITY_MAP).map(([k, v]) => (
-                          <SelectItem key={k} value={k}>
-                            {v.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
 
                   {/* Making Charges */}
                   <div className="grid grid-cols-2 gap-3">
