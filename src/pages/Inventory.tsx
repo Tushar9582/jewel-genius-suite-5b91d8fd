@@ -84,13 +84,17 @@ const Inventory = () => {
     e.preventDefault();
     const stock = parseInt(formData.stock);
     const status = stock === 0 ? "Out of Stock" : stock <= 5 ? "Low Stock" : "In Stock";
+    const isImitation = formData.metal_type === "Imitation";
 
     if (editProduct) {
       updateProductMutation.mutate({
         id: editProduct.id,
         data: {
           name: formData.name, category: formData.category, metal_type: formData.metal_type,
-          weight: parseFloat(formData.weight), stock, purchase_price: parseFloat(formData.purchase_price), unit_price: parseFloat(formData.unit_price), status,
+          weight: parseFloat(formData.weight), stock,
+          purchase_price: isImitation ? parseFloat(formData.purchase_price) : 0,
+          unit_price: isImitation ? parseFloat(formData.unit_price) : 0,
+          status,
         },
       });
     } else {
@@ -99,7 +103,10 @@ const Inventory = () => {
       const sku = `${metalPrefix}-${Date.now().toString(36).toUpperCase()}`;
       addProductMutation.mutate({
         sku, barcode, name: formData.name, category: formData.category, metal_type: formData.metal_type,
-        weight: parseFloat(formData.weight), stock, purchase_price: parseFloat(formData.purchase_price), unit_price: parseFloat(formData.unit_price), status,
+        weight: parseFloat(formData.weight), stock,
+        purchase_price: isImitation ? parseFloat(formData.purchase_price) : 0,
+        unit_price: isImitation ? parseFloat(formData.unit_price) : 0,
+        status,
       });
     }
   };
