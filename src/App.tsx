@@ -22,6 +22,7 @@ import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
+import Bills from "./pages/Bills";
 import NotFound from "./pages/NotFound";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import EmployeeInventory from "./pages/EmployeeInventory";
@@ -44,6 +45,7 @@ const App = () => (
               {/* Admin/User Protected Routes */}
               <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               <Route path="/pos" element={<ProtectedRoute><POS /></ProtectedRoute>} />
+              <Route path="/bills" element={<ProtectedRoute><Bills /></ProtectedRoute>} />
               <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
               <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
               <Route path="/investments" element={<ProtectedRoute><Investments /></ProtectedRoute>} />
