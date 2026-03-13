@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { addItem, getAll } from '@/lib/firebaseDb';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEmployeeAuth } from '@/contexts/EmployeeAuthContext';
 import { Button } from '@/components/ui/button';
