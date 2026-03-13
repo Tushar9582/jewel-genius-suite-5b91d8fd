@@ -22,6 +22,7 @@ import {
   Menu,
   X,
   ShieldCheck,
+  Receipt,
 } from "lucide-react";
 
 interface NavItem {
