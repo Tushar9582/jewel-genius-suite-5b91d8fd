@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { addItem, getAll } from '@/lib/firebaseDb';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEmployeeAuth } from '@/contexts/EmployeeAuthContext';
 import { Button } from '@/components/ui/button';
@@ -90,9 +91,41 @@ export default function Auth() {
     if (!validateAdminForm()) return;
     setIsLoading(true);
     const { error } = await signUp(email, password);
+    if (error) {
+      setIsLoading(false);
+      toast({ variant: "destructive", title: "Sign up failed", description: error.message });
+      return;
+    }
+
+    try {
+      // Wait for auth state to update and get the user
+      const { auth } = await import('@/lib/firebase');
+      const newUser = auth.currentUser;
+      if (newUser) {
+        // Save profile to Firebase RTDB
+        await addItem('profiles', {
+          user_id: newUser.uid,
+          email: newUser.email || email,
+          display_name: newUser.email?.split('@')[0] || email.split('@')[0],
+          avatar_url: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+
+        // Auto-assign admin role
+        await addItem('user_roles', {
+          user_id: newUser.uid,
+          role: 'admin',
+          created_at: new Date().toISOString(),
+        });
+      }
+    } catch (profileError) {
+      console.error('Error saving profile:', profileError);
+    }
+
     setIsLoading(false);
-    if (error) { toast({ variant: "destructive", title: "Sign up failed", description: error.message }); }
-    else { toast({ title: "Account created!", description: "You have successfully signed up and are now logged in." }); navigate('/'); }
+    toast({ title: "Account created!", description: "You have successfully signed up as Admin." });
+    navigate('/');
   };
 
   const handleEmployeeSignIn = async (e: React.FormEvent) => {
