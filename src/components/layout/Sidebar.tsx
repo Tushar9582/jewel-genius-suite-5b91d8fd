@@ -34,6 +34,7 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: ShoppingCart, label: "POS & Sales", href: "/pos", badge: "Live" },
+  { icon: Receipt, label: "Bills", href: "/bills" },
   { icon: Package, label: "Inventory", href: "/inventory" },
   { icon: Users, label: "Customers", href: "/customers" },
   { icon: TrendingUp, label: "Investments", href: "/investments" },
