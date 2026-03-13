@@ -223,29 +223,6 @@ export function GoldRateCalculator({
       transition={{ duration: 0.5 }}
       className="space-y-4"
     >
-      {/* Today's Quick Rates */}
-      {baseRate > 0 && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="grid grid-cols-3 gap-2"
-        >
-          {(["24K", "22K", "18K"] as const).map((k) => (
-            <div
-              key={k}
-              className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-center backdrop-blur-sm"
-            >
-              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                {k} Rate
-              </p>
-              <p className="mt-1 text-sm font-bold text-primary">
-                ₹{fmt(baseRate * PURITY_MAP[k].value)}
-              </p>
-              <p className="text-[10px] text-muted-foreground">per gram</p>
-            </div>
-          ))}
-        </motion.div>
-      )}
 
       {/* Calculator Items */}
       <AnimatePresence mode="popLayout">
