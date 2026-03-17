@@ -5,10 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Users, Search, Plus, Filter, Phone, Mail, Crown, Loader2 } from "lucide-react";
+import { Users, Search, Plus, Filter, Phone, Mail, Crown, Loader2, Cake } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getAll, addItem } from "@/lib/firebaseDb";
@@ -22,6 +27,7 @@ interface Customer {
   city: string | null;
   loyalty_points: number;
   total_purchases: number;
+  date_of_birth: string | null;
 }
 
 const getTierColor = (totalPurchases: number) => {
@@ -31,10 +37,18 @@ const getTierColor = (totalPurchases: number) => {
   return { tier: "Bronze", class: "bg-muted text-muted-foreground" };
 };
 
+function isTodayBirthday(dob: string | null): boolean {
+  if (!dob) return false;
+  const today = new Date();
+  const birth = new Date(dob);
+  return birth.getMonth() === today.getMonth() && birth.getDate() === today.getDate();
+}
+
 const Customers = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", address: "", city: "" });
+  const [dob, setDob] = useState<Date | undefined>();
   const queryClient = useQueryClient();
 
   const { data: customers = [], isLoading } = useQuery({
@@ -51,6 +65,7 @@ const Customers = () => {
       toast.success("Customer added successfully!");
       setIsDialogOpen(false);
       setFormData({ name: "", email: "", phone: "", address: "", city: "" });
+      setDob(undefined);
     },
     onError: (error) => toast.error("Failed to add customer: " + error.message),
   });
@@ -58,18 +73,28 @@ const Customers = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     addCustomerMutation.mutate({
-      name: formData.name, email: formData.email || null, phone: formData.phone,
-      address: formData.address || null, city: formData.city || null,
+      name: formData.name,
+      email: formData.email || null,
+      phone: formData.phone,
+      address: formData.address || null,
+      city: formData.city || null,
+      date_of_birth: dob ? format(dob, "yyyy-MM-dd") : null,
     });
   };
 
   const filteredCustomers = customers.filter(
-    (c) => c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || c.phone?.includes(searchQuery) || (c.email && c.email.toLowerCase().includes(searchQuery.toLowerCase()))
+    (c) =>
+      c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.phone?.includes(searchQuery) ||
+      (c.email && c.email.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  const birthdayCustomers = customers.filter((c) => isTodayBirthday(c.date_of_birth));
 
   const stats = {
     totalCustomers: customers.length,
     platinumCustomers: customers.filter((c) => (c.total_purchases || 0) >= 5000000).length,
+    birthdaysToday: birthdayCustomers.length,
     avgLifetimeValue: customers.length > 0 ? customers.reduce((acc, c) => acc + (c.total_purchases || 0), 0) / customers.length : 0,
   };
 
@@ -97,6 +122,30 @@ const Customers = () => {
                   <div className="space-y-2"><Label htmlFor="phone">Phone *</Label><Input id="phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="+91 98765 43210" required /></div>
                   <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="priya@email.com" /></div>
                 </div>
+                <div className="space-y-2">
+                  <Label>Date of Birth</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dob && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dob ? format(dob, "PPP") : <span>Pick date of birth</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dob}
+                        onSelect={setDob}
+                        disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                        captionLayout="dropdown-buttons"
+                        fromYear={1930}
+                        toYear={new Date().getFullYear()}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <div className="space-y-2"><Label htmlFor="city">City</Label><Input id="city" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="Mumbai" /></div>
                 <div className="space-y-2"><Label htmlFor="address">Address</Label><Textarea id="address" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} placeholder="Full address..." rows={2} /></div>
                 <Button type="submit" variant="gold" className="w-full" disabled={addCustomerMutation.isPending}>
@@ -111,9 +160,26 @@ const Customers = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">Total Customers</p><p className="text-xl sm:text-2xl font-bold text-primary">{stats.totalCustomers}</p></CardContent></Card>
         <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><div className="flex items-center gap-1 sm:gap-2"><Crown className="w-3 h-3 sm:w-4 sm:h-4 text-primary shrink-0" /><p className="text-xs sm:text-sm text-muted-foreground truncate">Platinum</p></div><p className="text-xl sm:text-2xl font-bold">{stats.platinumCustomers}</p></CardContent></Card>
-        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground">New This Month</p><p className="text-xl sm:text-2xl font-bold text-green-500">+{customers.length}</p></CardContent></Card>
+        <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><div className="flex items-center gap-1 sm:gap-2"><Cake className="w-3 h-3 sm:w-4 sm:h-4 text-pink-500 shrink-0" /><p className="text-xs sm:text-sm text-muted-foreground truncate">Birthdays Today</p></div><p className="text-xl sm:text-2xl font-bold text-pink-500">{stats.birthdaysToday}</p></CardContent></Card>
         <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground truncate">Avg. Lifetime Value</p><p className="text-xl sm:text-2xl font-bold">{formatCurrency(stats.avgLifetimeValue)}</p></CardContent></Card>
       </div>
+
+      {birthdayCustomers.length > 0 && (
+        <Card className="mb-6 border-pink-500/30 bg-gradient-to-r from-pink-500/5 to-orange-400/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-pink-600 dark:text-pink-400">
+              <Cake className="w-4 h-4" /> 🎂 Today's Birthdays
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {birthdayCustomers.map((c) => (
+              <Badge key={c.id} className="bg-gradient-to-r from-pink-500 to-orange-400 text-white gap-1.5 px-3 py-1">
+                <Cake className="w-3 h-3" /> {c.name} — {c.phone}
+              </Badge>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card variant="elevated">
         <CardHeader className="pb-3">
@@ -134,18 +200,27 @@ const Customers = () => {
             <div className="space-y-3">
               {filteredCustomers.map((customer) => {
                 const tierInfo = getTierColor(customer.total_purchases || 0);
+                const birthday = isTodayBirthday(customer.date_of_birth);
                 return (
-                  <div key={customer.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer">
+                  <div key={customer.id} className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border transition-colors cursor-pointer ${birthday ? "bg-pink-500/5 border-pink-500/30 hover:bg-pink-500/10" : "bg-muted/30 border-border/50 hover:bg-muted/50"}`}>
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0"><AvatarFallback className="bg-primary/20 text-primary font-semibold text-sm">{customer.name?.split(" ").map((n) => n[0]).join("")}</AvatarFallback></Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-semibold text-sm sm:text-base truncate">{customer.name}</p>
                           <Badge className={`${tierInfo.class} text-xs`}>{tierInfo.tier}</Badge>
+                          {birthday && (
+                            <Badge className="bg-gradient-to-r from-pink-500 to-orange-400 text-white text-[10px] gap-1">
+                              <Cake className="w-3 h-3" /> Birthday!
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-1">
                           {customer.email && <span className="flex items-center gap-1 truncate"><Mail className="w-3 h-3 shrink-0" /><span className="truncate">{customer.email}</span></span>}
                           <span className="flex items-center gap-1"><Phone className="w-3 h-3 shrink-0" />{customer.phone}</span>
+                          {customer.date_of_birth && (
+                            <span className="flex items-center gap-1"><Cake className="w-3 h-3 shrink-0" />{format(new Date(customer.date_of_birth), "dd MMM yyyy")}</span>
+                          )}
                         </div>
                       </div>
                     </div>

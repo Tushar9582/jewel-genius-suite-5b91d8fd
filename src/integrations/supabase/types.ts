@@ -62,6 +62,7 @@ export type Database = {
           city: string | null
           created_at: string
           created_by: string | null
+          date_of_birth: string | null
           email: string | null
           id: string
           loyalty_points: number | null
@@ -75,6 +76,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           created_by?: string | null
+          date_of_birth?: string | null
           email?: string | null
           id?: string
           loyalty_points?: number | null
@@ -88,6 +90,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           created_by?: string | null
+          date_of_birth?: string | null
           email?: string | null
           id?: string
           loyalty_points?: number | null
