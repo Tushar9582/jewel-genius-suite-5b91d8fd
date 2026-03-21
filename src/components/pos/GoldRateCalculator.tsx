@@ -210,7 +210,7 @@ export function GoldRateCalculator({
         weight: parseFloat(item.weight) || 0,
         purity: item.purity,
         makingCharges: res.makingTotal,
-        gst: res.gst,
+        gst: res.totalGST,
       });
       // Remove item from calculator after adding to bill
       setItems((prev) => {
