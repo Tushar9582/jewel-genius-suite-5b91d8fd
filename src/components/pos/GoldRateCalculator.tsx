@@ -378,12 +378,13 @@ export function GoldRateCalculator({
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                         Price Breakdown
                       </p>
-                      <Row label="Pure Gold Value" value={res.pureGoldValue} />
+                      <Row label="Gold Value" value={res.goldValue} />
                       <Row label="Making Charges" value={res.makingTotal} />
                       {res.additional > 0 && (
                         <Row label="Additional" value={res.additional} />
                       )}
-                      <Row label="GST (3%)" value={res.gst} />
+                      <Row label="GST on Gold (3%)" value={res.gstOnGold} />
+                      <Row label="GST on Making (5%)" value={res.gstOnMaking} />
                       <div className="border-t border-primary/10 pt-1.5 mt-1.5">
                         <div className="flex justify-between font-bold text-sm">
                           <span>Total</span>
