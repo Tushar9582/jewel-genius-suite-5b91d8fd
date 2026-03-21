@@ -90,20 +90,28 @@ const defaultItem = (): CalcItem => ({
 const calcItemResult = (item: CalcItem) => {
   const rate = parseFloat(item.goldRate) || 0;
   const weight = parseFloat(item.weight) || 0;
-  const purityVal = PURITY_MAP[item.purity]?.value ?? 0.916;
   const makingAmt = parseFloat(item.makingCharges) || 0;
   const additional = parseFloat(item.additionalCharges) || 0;
 
-  const pureGoldValue = weight * rate * purityVal;
+  // Step 1: Gold value (rate × weight, no purity adjustment — rate is already per karat)
+  const goldValue = rate * weight;
+
+  // Step 2: Making charges
   const makingTotal =
     item.makingType === "percent"
-      ? pureGoldValue * (makingAmt / 100)
-      : makingAmt;
-  const subtotal = pureGoldValue + makingTotal + additional;
-  const gst = subtotal * 0.03;
-  const total = subtotal + gst;
+      ? (goldValue * makingAmt) / 100
+      : makingAmt * weight; // per-gram making charges
 
-  return { pureGoldValue, makingTotal, additional, subtotal, gst, total };
+  // Step 3-5: GST — 3% on gold, 5% on making charges (Indian standard)
+  const gstOnGold = (goldValue * 3) / 100;
+  const gstOnMaking = (makingTotal * 5) / 100;
+  const totalGST = gstOnGold + gstOnMaking;
+
+  // Step 6: Final amount
+  const subtotal = goldValue + makingTotal + additional;
+  const total = subtotal + totalGST;
+
+  return { goldValue, makingTotal, additional, gstOnGold, gstOnMaking, totalGST, subtotal, total };
 };
 
 const fmt = (n: number) =>
@@ -202,7 +210,7 @@ export function GoldRateCalculator({
         weight: parseFloat(item.weight) || 0,
         purity: item.purity,
         makingCharges: res.makingTotal,
-        gst: res.gst,
+        gst: res.totalGST,
       });
       // Remove item from calculator after adding to bill
       setItems((prev) => {
@@ -336,7 +344,7 @@ export function GoldRateCalculator({
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="percent">%</SelectItem>
-                            <SelectItem value="fixed">₹</SelectItem>
+                            <SelectItem value="fixed">₹/g</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -370,12 +378,13 @@ export function GoldRateCalculator({
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                         Price Breakdown
                       </p>
-                      <Row label="Pure Gold Value" value={res.pureGoldValue} />
+                      <Row label="Gold Value" value={res.goldValue} />
                       <Row label="Making Charges" value={res.makingTotal} />
                       {res.additional > 0 && (
                         <Row label="Additional" value={res.additional} />
                       )}
-                      <Row label="GST (3%)" value={res.gst} />
+                      <Row label="GST on Gold (3%)" value={res.gstOnGold} />
+                      <Row label="GST on Making (5%)" value={res.gstOnMaking} />
                       <div className="border-t border-primary/10 pt-1.5 mt-1.5">
                         <div className="flex justify-between font-bold text-sm">
                           <span>Total</span>
