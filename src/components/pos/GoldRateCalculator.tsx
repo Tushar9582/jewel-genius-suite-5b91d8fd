@@ -62,7 +62,6 @@ export interface CalcResult {
   weight: number;
   purity: string;
   makingCharges: number;
-  gst: number;
 }
 
 interface CalcItem {
