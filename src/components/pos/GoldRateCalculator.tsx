@@ -93,25 +93,19 @@ const calcItemResult = (item: CalcItem) => {
   const makingAmt = parseFloat(item.makingCharges) || 0;
   const additional = parseFloat(item.additionalCharges) || 0;
 
-  // Step 1: Gold value (rate × weight, no purity adjustment — rate is already per karat)
+  // Gold value (rate × weight)
   const goldValue = rate * weight;
 
-  // Step 2: Making charges
+  // Making charges
   const makingTotal =
     item.makingType === "percent"
       ? (goldValue * makingAmt) / 100
-      : makingAmt * weight; // per-gram making charges
+      : makingAmt * weight;
 
-  // Step 3-5: GST — 3% on gold, 5% on making charges (Indian standard)
-  const gstOnGold = (goldValue * 3) / 100;
-  const gstOnMaking = (makingTotal * 5) / 100;
-  const totalGST = gstOnGold + gstOnMaking;
+  // Total without GST — GST is applied once in the final POS billing
+  const total = goldValue + makingTotal + additional;
 
-  // Step 6: Final amount
-  const subtotal = goldValue + makingTotal + additional;
-  const total = subtotal + totalGST;
-
-  return { goldValue, makingTotal, additional, gstOnGold, gstOnMaking, totalGST, subtotal, total };
+  return { goldValue, makingTotal, additional, total };
 };
 
 const fmt = (n: number) =>
