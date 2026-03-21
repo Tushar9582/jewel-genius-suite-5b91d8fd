@@ -375,13 +375,12 @@ export function GoldRateCalculator({
                       {res.additional > 0 && (
                         <Row label="Additional" value={res.additional} />
                       )}
-                      <Row label="GST on Gold (3%)" value={res.gstOnGold} />
-                      <Row label="GST on Making (5%)" value={res.gstOnMaking} />
                       <div className="border-t border-primary/10 pt-1.5 mt-1.5">
                         <div className="flex justify-between font-bold text-sm">
-                          <span>Total</span>
+                          <span>Total (excl. GST)</span>
                           <span className="text-primary">₹{fmt(res.total)}</span>
                         </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">GST (3%) will be added in final bill</p>
                       </div>
 
                       {/* Add to Bill button — always show when onAddToCart is available */}
