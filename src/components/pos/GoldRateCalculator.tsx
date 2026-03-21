@@ -62,7 +62,6 @@ export interface CalcResult {
   weight: number;
   purity: string;
   makingCharges: number;
-  gst: number;
 }
 
 interface CalcItem {
@@ -93,25 +92,19 @@ const calcItemResult = (item: CalcItem) => {
   const makingAmt = parseFloat(item.makingCharges) || 0;
   const additional = parseFloat(item.additionalCharges) || 0;
 
-  // Step 1: Gold value (rate × weight, no purity adjustment — rate is already per karat)
+  // Gold value (rate × weight)
   const goldValue = rate * weight;
 
-  // Step 2: Making charges
+  // Making charges
   const makingTotal =
     item.makingType === "percent"
       ? (goldValue * makingAmt) / 100
-      : makingAmt * weight; // per-gram making charges
+      : makingAmt * weight;
 
-  // Step 3-5: GST — 3% on gold, 5% on making charges (Indian standard)
-  const gstOnGold = (goldValue * 3) / 100;
-  const gstOnMaking = (makingTotal * 5) / 100;
-  const totalGST = gstOnGold + gstOnMaking;
+  // Total without GST — GST is applied once in the final POS billing
+  const total = goldValue + makingTotal + additional;
 
-  // Step 6: Final amount
-  const subtotal = goldValue + makingTotal + additional;
-  const total = subtotal + totalGST;
-
-  return { goldValue, makingTotal, additional, gstOnGold, gstOnMaking, totalGST, subtotal, total };
+  return { goldValue, makingTotal, additional, total };
 };
 
 const fmt = (n: number) =>
@@ -210,7 +203,6 @@ export function GoldRateCalculator({
         weight: parseFloat(item.weight) || 0,
         purity: item.purity,
         makingCharges: res.makingTotal,
-        gst: res.totalGST,
       });
       // Remove item from calculator after adding to bill
       setItems((prev) => {
@@ -383,13 +375,12 @@ export function GoldRateCalculator({
                       {res.additional > 0 && (
                         <Row label="Additional" value={res.additional} />
                       )}
-                      <Row label="GST on Gold (3%)" value={res.gstOnGold} />
-                      <Row label="GST on Making (5%)" value={res.gstOnMaking} />
                       <div className="border-t border-primary/10 pt-1.5 mt-1.5">
                         <div className="flex justify-between font-bold text-sm">
-                          <span>Total</span>
+                          <span>Total (excl. GST)</span>
                           <span className="text-primary">₹{fmt(res.total)}</span>
                         </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">GST (3%) will be added in final bill</p>
                       </div>
 
                       {/* Add to Bill button — always show when onAddToCart is available */}

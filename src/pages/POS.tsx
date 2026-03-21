@@ -4,15 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
 import {
   ShoppingCart, Barcode, Search, Plus, Minus, Trash2,
-  CreditCard, Banknote, Smartphone, Loader2, Calculator, Gem, Zap, Gift,
+  CreditCard, Banknote, Smartphone, Loader2, Calculator, Gem, Zap, Gift, Package, UserPlus, Cake, Phone,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GoldRateCalculator, type ProductForCalc, type CalcResult } from "@/components/pos/GoldRateCalculator";
-import { CustomerSelector, type SelectedCustomer } from "@/components/pos/CustomerSelector";
 import { toast } from "sonner";
 import { getAll, addItem, updateItem } from "@/lib/firebaseDb";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface Product {
   id: string;
@@ -51,15 +55,23 @@ interface CustomerRecord {
 }
 
 const BIRTHDAY_DISCOUNT_PERCENT = 5;
-
 const isGoldProduct = (p: Product) => p.metal_type?.toLowerCase().includes("gold");
+
+function isTodayBirthday(dob: string | null | undefined): boolean {
+  if (!dob) return false;
+  const today = new Date();
+  const birth = new Date(dob);
+  return birth.getMonth() === today.getMonth() && birth.getDate() === today.getDate();
+}
 
 const POS = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
   const [calcProduct, setCalcProduct] = useState<ProductForCalc | null>(null);
-  const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
   const [birthdayDiscountApplied, setBirthdayDiscountApplied] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const scanBufferRef = useRef("");
@@ -74,14 +86,15 @@ const POS = () => {
     },
   });
 
-  const { data: customers = [], isLoading: customersLoading } = useQuery({
+  const { data: customers = [] } = useQuery({
     queryKey: ["customers"],
     queryFn: () => getAll<CustomerRecord>("customers"),
   });
 
-  // Reset birthday discount when customer changes
   useEffect(() => {
-    if (!selectedCustomer?.isBirthday) setBirthdayDiscountApplied(false);
+    if (!selectedCustomer || !isTodayBirthday(selectedCustomer.date_of_birth)) {
+      setBirthdayDiscountApplied(false);
+    }
   }, [selectedCustomer]);
 
   // Barcode scanner detection
@@ -106,28 +119,24 @@ const POS = () => {
         scanTimerRef.current = setTimeout(() => { scanBufferRef.current = ""; }, 100);
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [products, cart]);
 
-  const handleBarcodeScan = useCallback(
-    (code: string) => {
-      const product = products.find(
-        (p) => p.barcode?.toLowerCase() === code.toLowerCase() || p.sku?.toLowerCase() === code.toLowerCase()
-      );
-      if (!product) { toast.error(`Product not found: ${code}`); return; }
-      if (isGoldProduct(product)) {
-        sendToCalculator(product);
-        toast.success(`🔊 Scanned: ${product.name} → Calculator`);
-      } else {
-        addToCart(product);
-        toast.success(`🔊 Scanned: ${product.name} → Added to Bill`);
-      }
-      setSearchQuery("");
-    },
-    [products, cart]
-  );
+  const handleBarcodeScan = useCallback((code: string) => {
+    const product = products.find(
+      (p) => p.barcode?.toLowerCase() === code.toLowerCase() || p.sku?.toLowerCase() === code.toLowerCase()
+    );
+    if (!product) { toast.error(`Product not found: ${code}`); return; }
+    if (isGoldProduct(product)) {
+      sendToCalculator(product);
+      toast.success(`🔊 Scanned: ${product.name} → Calculator`);
+    } else {
+      addToCart(product);
+      toast.success(`🔊 Scanned: ${product.name} → Added to Bill`);
+    }
+    setSearchQuery("");
+  }, [products, cart]);
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchQuery.trim().length >= 3) {
@@ -151,8 +160,9 @@ const POS = () => {
   };
 
   const subtotal = cart.reduce((acc, item) => acc + item.unit_price * item.qty, 0);
-  const tax = subtotal * 0.03;
-  const birthdayDiscount = birthdayDiscountApplied ? subtotal * (BIRTHDAY_DISCOUNT_PERCENT / 100) : 0;
+  const tax = Math.round(subtotal * 0.03);
+  const isBirthday = selectedCustomer ? isTodayBirthday(selectedCustomer.date_of_birth) : false;
+  const birthdayDiscount = birthdayDiscountApplied ? Math.round(subtotal * (BIRTHDAY_DISCOUNT_PERCENT / 100)) : 0;
   const total = subtotal + tax - birthdayDiscount;
 
   const completeSaleMutation = useMutation({
@@ -164,10 +174,7 @@ const POS = () => {
           product_id: item.id, name: item.name, qty: item.qty, price: item.unit_price,
           calculated: item.calculatedPrice || false, purity: item.purity || null,
         })),
-        subtotal,
-        tax,
-        discount: birthdayDiscount,
-        total,
+        subtotal, tax, discount: birthdayDiscount, total,
         payment_method: paymentMethod,
         status: "Completed",
         customer_id: selectedCustomer?.id || null,
@@ -180,7 +187,6 @@ const POS = () => {
         }
       }
 
-      // Update customer total_purchases if linked
       if (selectedCustomer) {
         await updateItem("customers", selectedCustomer.id, {
           total_purchases: (selectedCustomer.total_purchases || 0) + total,
@@ -198,6 +204,7 @@ const POS = () => {
       setCart([]);
       setSelectedCustomer(null);
       setBirthdayDiscountApplied(false);
+      setShowCheckout(false);
     },
     onError: (error) => toast.error("Failed to complete sale: " + error.message),
   });
@@ -205,7 +212,7 @@ const POS = () => {
   const addToCart = (product: Product) => {
     const existing = cart.find((item) => item.id === product.id);
     if (existing) {
-      if (existing.qty >= product.stock) { toast.error("Not enough stock available"); return; }
+      if (existing.qty >= product.stock) { toast.error("Not enough stock"); return; }
       setCart(cart.map((item) => (item.id === product.id ? { ...item, qty: item.qty + 1 } : item)));
     } else {
       setCart([...cart, { id: product.id, name: product.name, weight: product.weight, unit_price: product.unit_price, stock: product.stock, qty: 1, sku: product.sku }]);
@@ -213,41 +220,35 @@ const POS = () => {
     toast.success(`${product.name} added to cart`);
   };
 
-  const handleCalcAddToCart = useCallback(
-    (result: CalcResult) => {
-      const product = products.find((p) => p.id === result.productId);
-      if (product) {
-        const existing = cart.find((item) => item.id === product.id);
-        if (existing) {
-          if (existing.qty >= product.stock) { toast.error("Not enough stock available"); return; }
-          setCart(cart.map((item) => item.id === product.id ? { ...item, unit_price: result.calculatedPrice, qty: item.qty + 1, calculatedPrice: true, purity: result.purity } : item));
-        } else {
-          setCart([...cart, { id: product.id, name: product.name, weight: result.weight, unit_price: result.calculatedPrice, stock: product.stock, qty: 1, sku: product.sku, calculatedPrice: true, purity: result.purity }]);
-        }
+  const handleCalcAddToCart = useCallback((result: CalcResult) => {
+    const product = products.find((p) => p.id === result.productId);
+    if (product) {
+      const existing = cart.find((item) => item.id === product.id);
+      if (existing) {
+        if (existing.qty >= product.stock) { toast.error("Not enough stock"); return; }
+        setCart(cart.map((item) => item.id === product.id ? { ...item, unit_price: result.calculatedPrice, qty: item.qty + 1, calculatedPrice: true, purity: result.purity } : item));
       } else {
-        const customId = `calc-${Date.now()}`;
-        setCart([...cart, { id: customId, name: result.productName, weight: result.weight, unit_price: result.calculatedPrice, stock: 9999, qty: 1, sku: "CUSTOM", calculatedPrice: true, purity: result.purity }]);
+        setCart([...cart, { id: product.id, name: product.name, weight: result.weight, unit_price: result.calculatedPrice, stock: product.stock, qty: 1, sku: product.sku, calculatedPrice: true, purity: result.purity }]);
       }
-      toast.success(`₹${result.calculatedPrice.toLocaleString()} added to bill!`);
-    },
-    [cart, products]
-  );
+    } else {
+      setCart([...cart, { id: `calc-${Date.now()}`, name: result.productName, weight: result.weight, unit_price: result.calculatedPrice, stock: 9999, qty: 1, sku: "CUSTOM", calculatedPrice: true, purity: result.purity }]);
+    }
+    toast.success(`₹${result.calculatedPrice.toLocaleString()} added to bill!`);
+  }, [cart, products]);
 
   const sendToCalculator = (product: Product) => {
     setCalcProduct({ id: product.id, name: product.name, weight: product.weight, metal_type: product.metal_type, unit_price: product.unit_price, sku: product.sku, stock: product.stock, category: product.category });
   };
 
   const updateQty = (productId: string, delta: number) => {
-    setCart(
-      cart.map((item) => {
-        if (item.id === productId) {
-          const newQty = item.qty + delta;
-          if (newQty > item.stock) { toast.error("Not enough stock"); return item; }
-          return newQty > 0 ? { ...item, qty: newQty } : null;
-        }
-        return item;
-      }).filter(Boolean) as CartItem[]
-    );
+    setCart(cart.map((item) => {
+      if (item.id === productId) {
+        const newQty = item.qty + delta;
+        if (newQty > item.stock) { toast.error("Not enough stock"); return item; }
+        return newQty > 0 ? { ...item, qty: newQty } : null;
+      }
+      return item;
+    }).filter(Boolean) as CartItem[]);
   };
 
   const removeFromCart = (productId: string) => setCart(cart.filter((item) => item.id !== productId));
@@ -256,6 +257,14 @@ const POS = () => {
     (p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase()) || (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  const filteredCustomers = customerSearch.trim()
+    ? customers.filter((c) =>
+        c.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+        c.phone?.includes(customerSearch) ||
+        (c.email && c.email.toLowerCase().includes(customerSearch.toLowerCase()))
+      ).slice(0, 8)
+    : [];
+
   return (
     <DashboardLayout>
       <div className="mb-6 animate-fade-in pt-2 sm:pt-0">
@@ -263,83 +272,88 @@ const POS = () => {
           <span className="text-gradient-gold">POS</span> & Sales
         </h1>
         <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-          Scan barcode to instantly add to bill • Gold items → Calculator → Bill
+          Scan barcode to add • Gold items → Calculator → Bill
         </p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
         <div className="xl:col-span-2 space-y-4 sm:space-y-6">
-          {/* Customer Selector */}
-          <CustomerSelector
-            customers={customers}
-            selectedCustomer={selectedCustomer}
-            onSelect={setSelectedCustomer}
-            isLoading={customersLoading}
-          />
-
           {/* Scanner / Search */}
           <Card variant="elevated">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Barcode className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                Scan Barcode / Search Products
-                <Badge variant="secondary" className="text-[10px] ml-auto">
-                  <Zap className="w-3 h-3 mr-1" />Auto-detect scanner
-                </Badge>
+                Scan / Search Products
+                <Badge variant="secondary" className="text-[10px] ml-auto"><Zap className="w-3 h-3 mr-1" />Auto-detect</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    ref={scanInputRef}
-                    placeholder="Scan barcode or type product name & press Enter..."
-                    className="pl-10"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={handleSearchKeyDown}
-                    autoFocus
-                  />
-                </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input ref={scanInputRef} placeholder="Scan barcode or type product name & press Enter..." className="pl-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={handleSearchKeyDown} autoFocus />
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="mt-4 max-h-48 overflow-y-auto space-y-2">
-                {isLoading ? (
-                  <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-                ) : filteredProducts.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4 text-sm">{products.length === 0 ? "No products in inventory" : "No products found"}</p>
-                ) : (
-                  filteredProducts.slice(0, 8).map((product) => {
-                    const gold = isGoldProduct(product);
-                    return (
-                      <div key={product.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 cursor-pointer" onClick={() => (gold ? sendToCalculator(product) : addToCart(product))}>
-                        <div className="flex items-center gap-2">
-                          {gold && <Gem className="w-3.5 h-3.5 text-primary shrink-0" />}
-                          <div>
-                            <p className="font-medium text-sm flex items-center gap-1.5">
-                              {product.name}
-                              {gold && <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary">{product.metal_type}</Badge>}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              <span className="font-mono">{product.barcode || product.sku}</span> • {product.weight}g • Stock: {product.stock}
-                              {product.purchase_price ? ` • Cost: ₹${product.purchase_price.toLocaleString()}` : ""}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right flex items-center gap-2">
-                          <p className="font-semibold text-primary text-sm">₹{product.unit_price.toLocaleString()}</p>
-                          {gold ? (
-                            <Button variant="gold" size="sm" className="h-6 text-[10px] px-2"><Calculator className="w-3 h-3 mr-1" /> Calculate</Button>
-                          ) : (
-                            <Button variant="ghost" size="sm" className="h-6 text-xs"><Plus className="w-3 h-3 mr-1" /> Add</Button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+          {/* Inventory Table */}
+          <Card variant="elevated">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                Inventory
+                <Badge variant="secondary" className="ml-2">{filteredProducts.length} products</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+              ) : filteredProducts.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8 text-sm">No products found</p>
+              ) : (
+                <div className="max-h-[300px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Product</TableHead>
+                        <TableHead className="text-xs">SKU</TableHead>
+                        <TableHead className="text-xs text-center">Weight</TableHead>
+                        <TableHead className="text-xs text-center">Stock</TableHead>
+                        <TableHead className="text-xs text-right">Price</TableHead>
+                        <TableHead className="text-xs text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredProducts.slice(0, 50).map((product) => {
+                        const gold = isGoldProduct(product);
+                        return (
+                          <TableRow key={product.id} className="cursor-pointer hover:bg-muted/50" onClick={() => gold ? sendToCalculator(product) : addToCart(product)}>
+                            <TableCell className="py-2">
+                              <div className="flex items-center gap-2">
+                                {gold && <Gem className="w-3.5 h-3.5 text-primary shrink-0" />}
+                                <span className="text-sm font-medium">{product.name}</span>
+                                {gold && <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary">{product.metal_type}</Badge>}
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-2 text-xs font-mono text-muted-foreground">{product.sku}</TableCell>
+                            <TableCell className="py-2 text-xs text-center">{product.weight}g</TableCell>
+                            <TableCell className="py-2 text-xs text-center">
+                              <Badge variant={product.stock <= 3 ? "destructive" : "secondary"} className="text-[10px]">{product.stock}</Badge>
+                            </TableCell>
+                            <TableCell className="py-2 text-sm font-semibold text-primary text-right">₹{product.unit_price.toLocaleString()}</TableCell>
+                            <TableCell className="py-2 text-right">
+                              {gold ? (
+                                <Button variant="gold" size="sm" className="h-6 text-[10px] px-2"><Calculator className="w-3 h-3 mr-1" />Calc</Button>
+                              ) : (
+                                <Button variant="ghost" size="sm" className="h-6 text-xs"><Plus className="w-3 h-3 mr-1" />Add</Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -355,15 +369,14 @@ const POS = () => {
             <CardContent>
               {cart.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8 text-sm">
-                  Cart is empty. Scan barcode or search products to add.
-                  <br /><span className="text-xs">🔊 Barcode scanner auto-detected • Gold → Calculator • Others → Direct add</span>
+                  Cart is empty. Scan barcode or click products from inventory to add.
                 </p>
               ) : (
                 <div className="space-y-3">
                   {cart.map((item) => (
                     <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 rounded-lg bg-muted/30 border border-border/50">
                       <div className="flex items-center gap-3 flex-1">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-gold/20 flex items-center justify-center shrink-0">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                           {item.calculatedPrice ? <Gem className="w-4 h-4 sm:w-5 sm:h-5 text-primary" /> : <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -371,7 +384,7 @@ const POS = () => {
                             {item.name}
                             {item.calculatedPrice && <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary">{item.purity} Calc</Badge>}
                           </p>
-                          <p className="text-xs sm:text-sm text-muted-foreground">Weight: {item.weight}g{item.calculatedPrice && " • Price via Calculator"}</p>
+                          <p className="text-xs text-muted-foreground">Weight: {item.weight}g</p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
@@ -404,42 +417,51 @@ const POS = () => {
             </CardContent>
           </Card>
 
+          {/* Payment Summary */}
           <Card variant="gold">
             <CardHeader className="pb-3 sm:pb-4">
               <CardTitle className="text-base sm:text-lg">Payment Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Selected Customer */}
               {selectedCustomer && (
-                <div className="text-xs text-muted-foreground border-b border-border pb-2 mb-2">
-                  Bill for: <span className="font-semibold text-foreground">{selectedCustomer.name}</span>
+                <div className={`p-3 rounded-lg border ${isBirthday ? "border-pink-500/30 bg-pink-500/5" : "border-border/50 bg-muted/30"}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-primary/20 text-primary text-xs">{selectedCustomer.name?.split(" ").map((n) => n[0]).join("")}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-semibold flex items-center gap-1.5">
+                          {selectedCustomer.name}
+                          {isBirthday && <Cake className="w-3.5 h-3.5 text-pink-500" />}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" />{selectedCustomer.phone}</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground" onClick={() => { setSelectedCustomer(null); setBirthdayDiscountApplied(false); }}>Change</Button>
+                  </div>
+                  {isBirthday && !birthdayDiscountApplied && cart.length > 0 && (
+                    <Button variant="outline" size="sm" className="w-full mt-2 border-pink-500/30 text-pink-600 hover:bg-pink-500/10 gap-2 text-xs"
+                      onClick={() => { setBirthdayDiscountApplied(true); toast.success("🎂 Birthday 5% discount applied!"); }}>
+                      <Gift className="w-3.5 h-3.5" /> Apply 5% Birthday Discount
+                    </Button>
+                  )}
+                  {birthdayDiscountApplied && (
+                    <div className="flex items-center justify-between text-xs p-2 rounded-md bg-pink-500/10 border border-pink-500/20 mt-2">
+                      <span className="flex items-center gap-1.5 text-pink-600 dark:text-pink-400 font-medium"><Gift className="w-3 h-3" />Birthday Discount (5%)</span>
+                      <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1.5 text-muted-foreground" onClick={() => setBirthdayDiscountApplied(false)}>Remove</Button>
+                    </div>
+                  )}
                 </div>
               )}
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">GST (3%)</span><span>₹{tax.toLocaleString()}</span></div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Discount</span>
-                  <span className="text-green-500">-₹{birthdayDiscount.toLocaleString()}</span>
-                </div>
-
-                {selectedCustomer?.isBirthday && !birthdayDiscountApplied && cart.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full border-pink-500/30 text-pink-600 hover:bg-pink-500/10 gap-2 text-xs"
-                    onClick={() => { setBirthdayDiscountApplied(true); toast.success("🎂 Birthday 5% discount applied!"); }}
-                  >
-                    <Gift className="w-3.5 h-3.5" /> Apply 5% Birthday Discount
-                  </Button>
+                {birthdayDiscount > 0 && (
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Birthday Discount</span><span className="text-green-500">-₹{birthdayDiscount.toLocaleString()}</span></div>
                 )}
-                {birthdayDiscountApplied && (
-                  <div className="flex items-center justify-between text-xs p-2 rounded-md bg-pink-500/10 border border-pink-500/20">
-                    <span className="flex items-center gap-1.5 text-pink-600 dark:text-pink-400 font-medium"><Gift className="w-3 h-3" />Birthday Discount (5%)</span>
-                    <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1.5 text-muted-foreground" onClick={() => setBirthdayDiscountApplied(false)}>Remove</Button>
-                  </div>
-                )}
-
                 <div className="border-t border-border pt-2 mt-2">
                   <div className="flex justify-between font-bold text-base sm:text-lg"><span>Total</span><span className="text-gradient-gold">₹{total.toLocaleString()}</span></div>
                 </div>
@@ -454,20 +476,101 @@ const POS = () => {
                 </div>
               </div>
 
-              <Button
-                variant="gold"
-                className="w-full mt-4"
-                size="lg"
+              <Button variant="gold" className="w-full mt-4" size="lg"
                 disabled={cart.length === 0 || completeSaleMutation.isPending}
-                onClick={() => completeSaleMutation.mutate()}
-              >
-                {completeSaleMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Complete Sale
+                onClick={() => setShowCheckout(true)}>
+                Complete Sale — ₹{total.toLocaleString()}
               </Button>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Checkout Dialog — Customer Selection */}
+      <Dialog open={showCheckout} onOpenChange={setShowCheckout}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-primary" />
+              Complete Sale
+            </DialogTitle>
+            <DialogDescription>
+              Select a customer for this bill or proceed without one.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Customer Search */}
+            {!selectedCustomer ? (
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input placeholder="Search customer by name, phone..." className="pl-10" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} />
+                </div>
+                {customerSearch.trim() && (
+                  <div className="max-h-48 overflow-y-auto space-y-1 border border-border/50 rounded-lg p-2 bg-muted/20">
+                    {filteredCustomers.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-3">No customers found</p>
+                    ) : (
+                      filteredCustomers.map((c) => {
+                        const bday = isTodayBirthday(c.date_of_birth);
+                        return (
+                          <div key={c.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer" onClick={() => { setSelectedCustomer(c); setCustomerSearch(""); }}>
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="bg-primary/15 text-primary text-[10px]">{c.name?.split(" ").map((n) => n[0]).join("")}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium flex items-center gap-1.5">{c.name} {bday && <Cake className="w-3 h-3 text-pink-500" />}</p>
+                              <p className="text-xs text-muted-foreground">{c.phone}</p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className={`p-3 rounded-lg border ${isBirthday ? "border-pink-500/30 bg-pink-500/5" : "border-border/50 bg-muted/30"}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary/20 text-primary text-xs">{selectedCustomer.name?.split(" ").map((n) => n[0]).join("")}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-semibold flex items-center gap-1.5">{selectedCustomer.name} {isBirthday && <Badge className="bg-gradient-to-r from-pink-500 to-orange-400 text-white text-[10px] px-1.5"><Cake className="w-3 h-3 mr-0.5" />Birthday!</Badge>}</p>
+                      <p className="text-xs text-muted-foreground">{selectedCustomer.phone} {selectedCustomer.email && `• ${selectedCustomer.email}`}</p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setSelectedCustomer(null)}>Change</Button>
+                </div>
+              </div>
+            )}
+
+            {/* Bill Summary */}
+            <div className="rounded-lg border border-border/50 p-3 space-y-1.5">
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Items</span><span>{cart.length}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">GST (3%)</span><span>₹{tax.toLocaleString()}</span></div>
+              {birthdayDiscount > 0 && (
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Discount</span><span className="text-green-500">-₹{birthdayDiscount.toLocaleString()}</span></div>
+              )}
+              <div className="border-t border-border pt-2 mt-1">
+                <div className="flex justify-between font-bold text-lg"><span>Total</span><span className="text-primary">₹{total.toLocaleString()}</span></div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Payment: {paymentMethod} {selectedCustomer ? `• Customer: ${selectedCustomer.name}` : "• Walk-in Customer"}</p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowCheckout(false)}>Cancel</Button>
+            <Button variant="gold" disabled={completeSaleMutation.isPending} onClick={() => completeSaleMutation.mutate()}>
+              {completeSaleMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Confirm & Generate Bill
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
