@@ -90,20 +90,28 @@ const defaultItem = (): CalcItem => ({
 const calcItemResult = (item: CalcItem) => {
   const rate = parseFloat(item.goldRate) || 0;
   const weight = parseFloat(item.weight) || 0;
-  const purityVal = PURITY_MAP[item.purity]?.value ?? 0.916;
   const makingAmt = parseFloat(item.makingCharges) || 0;
   const additional = parseFloat(item.additionalCharges) || 0;
 
-  const pureGoldValue = weight * rate * purityVal;
+  // Step 1: Gold value (rate × weight, no purity adjustment — rate is already per karat)
+  const goldValue = rate * weight;
+
+  // Step 2: Making charges
   const makingTotal =
     item.makingType === "percent"
-      ? pureGoldValue * (makingAmt / 100)
-      : makingAmt;
-  const subtotal = pureGoldValue + makingTotal + additional;
-  const gst = subtotal * 0.03;
-  const total = subtotal + gst;
+      ? (goldValue * makingAmt) / 100
+      : makingAmt * weight; // per-gram making charges
 
-  return { pureGoldValue, makingTotal, additional, subtotal, gst, total };
+  // Step 3-5: GST — 3% on gold, 5% on making charges (Indian standard)
+  const gstOnGold = (goldValue * 3) / 100;
+  const gstOnMaking = (makingTotal * 5) / 100;
+  const totalGST = gstOnGold + gstOnMaking;
+
+  // Step 6: Final amount
+  const subtotal = goldValue + makingTotal + additional;
+  const total = subtotal + totalGST;
+
+  return { goldValue, makingTotal, additional, gstOnGold, gstOnMaking, totalGST, subtotal, total };
 };
 
 const fmt = (n: number) =>
