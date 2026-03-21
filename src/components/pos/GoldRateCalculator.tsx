@@ -344,7 +344,7 @@ export function GoldRateCalculator({
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="percent">%</SelectItem>
-                            <SelectItem value="fixed">₹</SelectItem>
+                            <SelectItem value="fixed">₹/g</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
