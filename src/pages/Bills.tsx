@@ -41,6 +41,69 @@ interface Sale {
 const Bills = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBill, setSelectedBill] = useState<Sale | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const generateBillText = (sale: Sale) => {
+    const items = Array.isArray(sale.items) ? sale.items : [];
+    const lines = [
+      `🧾 *Invoice: ${sale.invoice_number}*`,
+      `👤 Customer: ${sale.customer_name || "Walk-in"}`,
+      `📅 Date: ${sale.created_at ? format(new Date(sale.created_at), "dd MMM yyyy, hh:mm a") : "—"}`,
+      `💳 Payment: ${sale.payment_method}`,
+      "",
+      "*Items:*",
+      ...items.map((item: SaleItem) => `  • ${item.name} × ${item.qty} = ₹${((item.unit_price || 0) * (item.qty || 1)).toLocaleString("en-IN")}`),
+      "",
+      `Subtotal: ₹${(sale.subtotal || 0).toLocaleString("en-IN")}`,
+      `Tax: ₹${(sale.tax || 0).toLocaleString("en-IN")}`,
+      ...(sale.discount > 0 ? [`Discount: -₹${(sale.discount || 0).toLocaleString("en-IN")}`] : []),
+      `*Total: ₹${(sale.total || 0).toLocaleString("en-IN")}*`,
+    ];
+    return lines.join("\n");
+  };
+
+  const handleWhatsAppShare = (sale: Sale) => {
+    const text = generateBillText(sale);
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
+  };
+
+  const handlePrint = () => {
+    if (!printRef.current) return;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) { toast.error("Pop-up blocked. Please allow pop-ups."); return; }
+    printWindow.document.write(`
+      <html><head><title>Invoice</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #c8a45a; padding-bottom: 12px; }
+        .header h1 { font-size: 20px; margin: 0; color: #c8a45a; }
+        .info-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+        .items-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+        .items-table th, .items-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ddd; font-size: 13px; }
+        .items-table th { background: #f5f5f5; font-weight: 600; }
+        .totals { border-top: 2px solid #ddd; padding-top: 8px; }
+        .total-row { display: flex; justify-content: space-between; font-size: 13px; padding: 2px 0; }
+        .grand-total { font-size: 16px; font-weight: bold; color: #c8a45a; border-top: 2px solid #c8a45a; padding-top: 6px; margin-top: 4px; }
+        @media print { body { padding: 0; } }
+      </style></head><body>${printRef.current.innerHTML}</body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
+  };
+
+  const handleExport = (sale: Sale) => {
+    const text = generateBillText(sale).replace(/\*/g, "");
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `invoice-${sale.invoice_number}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Bill exported successfully!");
+  };
 
   const { data: sales = [], isLoading } = useQuery({
     queryKey: ["bills"],
