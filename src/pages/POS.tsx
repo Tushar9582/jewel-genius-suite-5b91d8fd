@@ -174,6 +174,22 @@ const POS = () => {
 
   const completeSaleMutation = useMutation({
     mutationFn: async () => {
+      let finalCustomer = selectedCustomer;
+
+      // Create new customer if in "new" mode
+      if (customerMode === "new" && newCustomerName.trim() && newCustomerPhone.trim()) {
+        const newId = await addItem("customers", {
+          name: newCustomerName.trim(),
+          phone: newCustomerPhone.trim(),
+          email: newCustomerEmail.trim() || null,
+          date_of_birth: newCustomerDob || null,
+          address: newCustomerAddress.trim() || null,
+          loyalty_points: 0,
+          total_purchases: 0,
+        });
+        finalCustomer = { id: newId, name: newCustomerName.trim(), phone: newCustomerPhone.trim(), email: newCustomerEmail.trim() || null, date_of_birth: newCustomerDob || null, loyalty_points: 0, total_purchases: 0 };
+      }
+
       const invoiceNumber = `INV-${Date.now()}`;
       await addItem("sales", {
         invoice_number: invoiceNumber,
@@ -184,8 +200,9 @@ const POS = () => {
         subtotal, tax, discount: birthdayDiscount, total,
         payment_method: paymentMethod,
         status: "Completed",
-        customer_id: selectedCustomer?.id || null,
-        customer_name: selectedCustomer?.name || null,
+        customer_id: finalCustomer?.id || null,
+        customer_name: finalCustomer?.name || null,
+        customer_phone: finalCustomer?.phone || null,
       });
 
       for (const item of cart) {
@@ -194,9 +211,9 @@ const POS = () => {
         }
       }
 
-      if (selectedCustomer) {
-        await updateItem("customers", selectedCustomer.id, {
-          total_purchases: (selectedCustomer.total_purchases || 0) + total,
+      if (finalCustomer) {
+        await updateItem("customers", finalCustomer.id, {
+          total_purchases: (finalCustomer.total_purchases || 0) + total,
         });
       }
 
@@ -212,9 +229,20 @@ const POS = () => {
       setSelectedCustomer(null);
       setBirthdayDiscountApplied(false);
       setShowCheckout(false);
+      resetNewCustomerForm();
     },
     onError: (error) => toast.error("Failed to complete sale: " + error.message),
   });
+
+  const resetNewCustomerForm = () => {
+    setCustomerMode("search");
+    setNewCustomerName("");
+    setNewCustomerPhone("");
+    setNewCustomerEmail("");
+    setNewCustomerDob("");
+    setNewCustomerAddress("");
+    setCustomerSearch("");
+  };
 
   const addToCart = (product: Product) => {
     const existing = cart.find((item) => item.id === product.id);
