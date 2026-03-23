@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,11 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Receipt, Search, Eye, IndianRupee, ShoppingBag, Calendar } from "lucide-react";
+import { Receipt, Search, Eye, IndianRupee, ShoppingBag, Calendar, Printer, Download, MessageCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getAll } from "@/lib/firebaseDb";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface SaleItem {
   name: string;
