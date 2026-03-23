@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,11 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Receipt, Search, Eye, IndianRupee, ShoppingBag, Calendar } from "lucide-react";
+import { Receipt, Search, Eye, IndianRupee, ShoppingBag, Calendar, Printer, Download, MessageCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getAll } from "@/lib/firebaseDb";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface SaleItem {
   name: string;
@@ -40,6 +41,69 @@ interface Sale {
 const Bills = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBill, setSelectedBill] = useState<Sale | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const generateBillText = (sale: Sale) => {
+    const items = Array.isArray(sale.items) ? sale.items : [];
+    const lines = [
+      `🧾 *Invoice: ${sale.invoice_number}*`,
+      `👤 Customer: ${sale.customer_name || "Walk-in"}`,
+      `📅 Date: ${sale.created_at ? format(new Date(sale.created_at), "dd MMM yyyy, hh:mm a") : "—"}`,
+      `💳 Payment: ${sale.payment_method}`,
+      "",
+      "*Items:*",
+      ...items.map((item: SaleItem) => `  • ${item.name} × ${item.qty} = ₹${((item.unit_price || 0) * (item.qty || 1)).toLocaleString("en-IN")}`),
+      "",
+      `Subtotal: ₹${(sale.subtotal || 0).toLocaleString("en-IN")}`,
+      `Tax: ₹${(sale.tax || 0).toLocaleString("en-IN")}`,
+      ...(sale.discount > 0 ? [`Discount: -₹${(sale.discount || 0).toLocaleString("en-IN")}`] : []),
+      `*Total: ₹${(sale.total || 0).toLocaleString("en-IN")}*`,
+    ];
+    return lines.join("\n");
+  };
+
+  const handleWhatsAppShare = (sale: Sale) => {
+    const text = generateBillText(sale);
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
+  };
+
+  const handlePrint = () => {
+    if (!printRef.current) return;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) { toast.error("Pop-up blocked. Please allow pop-ups."); return; }
+    printWindow.document.write(`
+      <html><head><title>Invoice</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #c8a45a; padding-bottom: 12px; }
+        .header h1 { font-size: 20px; margin: 0; color: #c8a45a; }
+        .info-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+        .items-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+        .items-table th, .items-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ddd; font-size: 13px; }
+        .items-table th { background: #f5f5f5; font-weight: 600; }
+        .totals { border-top: 2px solid #ddd; padding-top: 8px; }
+        .total-row { display: flex; justify-content: space-between; font-size: 13px; padding: 2px 0; }
+        .grand-total { font-size: 16px; font-weight: bold; color: #c8a45a; border-top: 2px solid #c8a45a; padding-top: 6px; margin-top: 4px; }
+        @media print { body { padding: 0; } }
+      </style></head><body>${printRef.current.innerHTML}</body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
+  };
+
+  const handleExport = (sale: Sale) => {
+    const text = generateBillText(sale).replace(/\*/g, "");
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `invoice-${sale.invoice_number}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Bill exported successfully!");
+  };
 
   const { data: sales = [], isLoading } = useQuery({
     queryKey: ["bills"],
@@ -151,7 +215,7 @@ const Bills = () => {
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead>Payment</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead className="text-center">Action</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -178,13 +242,17 @@ const Bills = () => {
                               : "—"}
                           </TableCell>
                           <TableCell className="text-center">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setSelectedBill(sale)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => setSelectedBill(sale)} title="View">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleWhatsAppShare(sale)} title="WhatsApp" className="text-green-600 hover:text-green-700">
+                                <MessageCircle className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleExport(sale)} title="Export">
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -198,7 +266,7 @@ const Bills = () => {
 
         {/* Bill Detail Dialog */}
         <Dialog open={!!selectedBill} onOpenChange={() => setSelectedBill(null)}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-primary" />
@@ -207,64 +275,80 @@ const Bills = () => {
             </DialogHeader>
             {selectedBill && (
               <div className="space-y-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Customer</span>
-                  <span className="font-medium">{selectedBill.customer_name || "Walk-in"}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Date</span>
-                  <span>
-                    {selectedBill.created_at
-                      ? format(new Date(selectedBill.created_at), "dd MMM yyyy, hh:mm a")
-                      : "—"}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Payment</span>
-                  <Badge variant="outline">{selectedBill.payment_method}</Badge>
-                </div>
+                {/* Printable Bill Content */}
+                <div ref={printRef}>
+                  <div style={{ textAlign: "center", marginBottom: 16, borderBottom: "2px solid #c8a45a", paddingBottom: 10 }}>
+                    <h1 style={{ fontSize: 18, margin: 0, color: "#c8a45a" }}>INVOICE</h1>
+                    <p style={{ fontSize: 12, margin: "4px 0 0", color: "#666" }}>{selectedBill.invoice_number}</p>
+                  </div>
 
-                <div className="border-t border-border pt-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase">Items</p>
-                  <div className="space-y-2">
-                    {(Array.isArray(selectedBill.items) ? selectedBill.items : []).map(
-                      (item: SaleItem, i: number) => (
-                        <div key={i} className="flex justify-between text-sm">
-                          <span>
-                            {item.name} × {item.qty}
-                          </span>
-                          <span className="font-medium">
-                            ₹{((item.unit_price || 0) * (item.qty || 1)).toLocaleString("en-IN")}
-                          </span>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-
-                <div className="border-t border-border pt-3 space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span>₹{(selectedBill.subtotal || 0).toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tax</span>
-                    <span>₹{(selectedBill.tax || 0).toLocaleString("en-IN")}</span>
-                  </div>
-                  {(selectedBill.discount || 0) > 0 && (
+                  <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Discount</span>
-                      <span className="text-destructive">
-                        -₹{(selectedBill.discount || 0).toLocaleString("en-IN")}
-                      </span>
+                      <span className="text-muted-foreground">Customer</span>
+                      <span className="font-medium">{selectedBill.customer_name || "Walk-in"}</span>
                     </div>
-                  )}
-                  <div className="flex justify-between font-bold text-base pt-1 border-t border-border">
-                    <span>Total</span>
-                    <span className="text-primary">
-                      ₹{(selectedBill.total || 0).toLocaleString("en-IN")}
-                    </span>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Date</span>
+                      <span>{selectedBill.created_at ? format(new Date(selectedBill.created_at), "dd MMM yyyy, hh:mm a") : "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Payment</span>
+                      <span>{selectedBill.payment_method}</span>
+                    </div>
                   </div>
+
+                  <table style={{ width: "100%", borderCollapse: "collapse", margin: "12px 0" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid #ddd" }}>
+                        <th style={{ textAlign: "left", padding: "6px 4px", fontSize: 12 }}>Item</th>
+                        <th style={{ textAlign: "center", padding: "6px 4px", fontSize: 12 }}>Qty</th>
+                        <th style={{ textAlign: "right", padding: "6px 4px", fontSize: 12 }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(Array.isArray(selectedBill.items) ? selectedBill.items : []).map((item: SaleItem, i: number) => (
+                        <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
+                          <td style={{ padding: "6px 4px", fontSize: 13 }}>{item.name}</td>
+                          <td style={{ textAlign: "center", padding: "6px 4px", fontSize: 13 }}>{item.qty}</td>
+                          <td style={{ textAlign: "right", padding: "6px 4px", fontSize: 13 }}>₹{((item.unit_price || 0) * (item.qty || 1)).toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <div className="border-t border-border pt-3 space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span>₹{(selectedBill.subtotal || 0).toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Tax (3%)</span>
+                      <span>₹{(selectedBill.tax || 0).toLocaleString("en-IN")}</span>
+                    </div>
+                    {(selectedBill.discount || 0) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Discount</span>
+                        <span className="text-destructive">-₹{(selectedBill.discount || 0).toLocaleString("en-IN")}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-base pt-1 border-t border-border">
+                      <span>Total</span>
+                      <span className="text-primary">₹{(selectedBill.total || 0).toLocaleString("en-IN")}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2 border-t border-border">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={handlePrint}>
+                    <Printer className="w-4 h-4 mr-1" /> Print
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 text-green-600 border-green-600/30 hover:bg-green-50" onClick={() => handleWhatsAppShare(selectedBill)}>
+                    <MessageCircle className="w-4 h-4 mr-1" /> WhatsApp
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleExport(selectedBill)}>
+                    <Download className="w-4 h-4 mr-1" /> Export
+                  </Button>
                 </div>
               </div>
             )}
