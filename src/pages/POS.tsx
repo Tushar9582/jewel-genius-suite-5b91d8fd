@@ -10,13 +10,14 @@ import {
 } from "@/components/ui/dialog";
 import {
   ShoppingCart, Barcode, Search, Plus, Minus, Trash2,
-  CreditCard, Banknote, Smartphone, Loader2, Calculator, Gem, Zap, Gift, Package, UserPlus, Cake, Phone,
+  CreditCard, Banknote, Smartphone, Loader2, Calculator, Gem, Zap, Gift, Package, UserPlus, Cake, Phone, User, MapPin, Mail, Calendar,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GoldRateCalculator, type ProductForCalc, type CalcResult } from "@/components/pos/GoldRateCalculator";
 import { toast } from "sonner";
 import { getAll, addItem, updateItem } from "@/lib/firebaseDb";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
 
 interface Product {
   id: string;
