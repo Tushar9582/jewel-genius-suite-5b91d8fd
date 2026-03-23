@@ -73,6 +73,12 @@ const POS = () => {
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
   const [birthdayDiscountApplied, setBirthdayDiscountApplied] = useState(false);
+  const [customerMode, setCustomerMode] = useState<"search" | "new" | "walkin">("search");
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerEmail, setNewCustomerEmail] = useState("");
+  const [newCustomerDob, setNewCustomerDob] = useState("");
+  const [newCustomerAddress, setNewCustomerAddress] = useState("");
   const scanInputRef = useRef<HTMLInputElement>(null);
   const scanBufferRef = useRef("");
   const scanTimerRef = useRef<NodeJS.Timeout | null>(null);
