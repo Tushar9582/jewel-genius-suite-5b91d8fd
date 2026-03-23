@@ -513,7 +513,7 @@ const POS = () => {
 
               <Button variant="gold" className="w-full mt-4" size="lg"
                 disabled={cart.length === 0 || completeSaleMutation.isPending}
-                onClick={() => setShowCheckout(true)}>
+                onClick={() => { resetNewCustomerForm(); setShowCheckout(true); }}>
                 Complete Sale — ₹{total.toLocaleString()}
               </Button>
             </CardContent>
@@ -521,43 +521,64 @@ const POS = () => {
         </div>
       </div>
 
-      {/* Checkout Dialog — Customer Selection */}
-      <Dialog open={showCheckout} onOpenChange={setShowCheckout}>
-        <DialogContent className="sm:max-w-md">
+      {/* Checkout Dialog — Customer Details */}
+      <Dialog open={showCheckout} onOpenChange={(open) => { setShowCheckout(open); if (!open) resetNewCustomerForm(); }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-primary" />
-              Complete Sale
+              Customer Details & Checkout
             </DialogTitle>
             <DialogDescription>
-              Select a customer for this bill or proceed without one.
+              Add customer details to generate the bill under their name.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Customer Search */}
-            {!selectedCustomer ? (
+            {/* Mode Selector */}
+            {!selectedCustomer && (
+              <div className="grid grid-cols-3 gap-2">
+                <Button variant={customerMode === "search" ? "default" : "outline"} size="sm" className="text-xs gap-1.5" onClick={() => setCustomerMode("search")}>
+                  <Search className="w-3.5 h-3.5" />Existing
+                </Button>
+                <Button variant={customerMode === "new" ? "default" : "outline"} size="sm" className="text-xs gap-1.5" onClick={() => setCustomerMode("new")}>
+                  <UserPlus className="w-3.5 h-3.5" />New Customer
+                </Button>
+                <Button variant={customerMode === "walkin" ? "default" : "outline"} size="sm" className="text-xs gap-1.5" onClick={() => setCustomerMode("walkin")}>
+                  <User className="w-3.5 h-3.5" />Walk-in
+                </Button>
+              </div>
+            )}
+
+            {/* Search Existing Customer */}
+            {!selectedCustomer && customerMode === "search" && (
               <div className="space-y-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input placeholder="Search customer by name, phone..." className="pl-10" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} />
+                  <Input placeholder="Search by name or phone number..." className="pl-10" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} autoFocus />
                 </div>
                 {customerSearch.trim() && (
                   <div className="max-h-48 overflow-y-auto space-y-1 border border-border/50 rounded-lg p-2 bg-muted/20">
                     {filteredCustomers.length === 0 ? (
-                      <p className="text-xs text-muted-foreground text-center py-3">No customers found</p>
+                      <div className="text-center py-4">
+                        <p className="text-xs text-muted-foreground">No customers found for "{customerSearch}"</p>
+                        <Button variant="link" size="sm" className="text-xs mt-1 text-primary" onClick={() => { setCustomerMode("new"); setNewCustomerPhone(customerSearch.replace(/\D/g, "")); }}>
+                          + Add as new customer
+                        </Button>
+                      </div>
                     ) : (
                       filteredCustomers.map((c) => {
                         const bday = isTodayBirthday(c.date_of_birth);
                         return (
-                          <div key={c.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer" onClick={() => { setSelectedCustomer(c); setCustomerSearch(""); }}>
-                            <Avatar className="h-8 w-8">
+                          <div key={c.id} className="flex items-center gap-2 p-2.5 rounded-md hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => { setSelectedCustomer(c); setCustomerSearch(""); }}>
+                            <Avatar className="h-9 w-9">
                               <AvatarFallback className="bg-primary/15 text-primary text-[10px]">{c.name?.split(" ").map((n) => n[0]).join("")}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium flex items-center gap-1.5">{c.name} {bday && <Cake className="w-3 h-3 text-pink-500" />}</p>
-                              <p className="text-xs text-muted-foreground">{c.phone}</p>
+                              <p className="text-sm font-medium flex items-center gap-1.5">{c.name} {bday && <Cake className="w-3.5 h-3.5 text-pink-500" />}</p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" />{c.phone}</p>
                             </div>
+                            {bday && <Badge className="bg-gradient-to-r from-pink-500 to-orange-400 text-white text-[9px] px-1.5">🎂 Birthday</Badge>}
                           </div>
                         );
                       })
@@ -565,41 +586,114 @@ const POS = () => {
                   </div>
                 )}
               </div>
-            ) : (
+            )}
+
+            {/* New Customer Form */}
+            {!selectedCustomer && customerMode === "new" && (
+              <div className="space-y-3 p-3 rounded-lg border border-border/50 bg-muted/10">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">New Customer Details</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1"><User className="w-3 h-3" />Name <span className="text-destructive">*</span></Label>
+                    <Input placeholder="Customer name" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} autoFocus />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1"><Phone className="w-3 h-3" />Phone <span className="text-destructive">*</span></Label>
+                    <Input placeholder="Phone number" value={newCustomerPhone} onChange={(e) => setNewCustomerPhone(e.target.value)} type="tel" maxLength={10} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1"><Mail className="w-3 h-3" />Email</Label>
+                    <Input placeholder="Email (optional)" value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} type="email" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1"><Calendar className="w-3 h-3" />Date of Birth</Label>
+                    <Input type="date" value={newCustomerDob} onChange={(e) => setNewCustomerDob(e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1"><MapPin className="w-3 h-3" />Address</Label>
+                  <Input placeholder="Address (optional)" value={newCustomerAddress} onChange={(e) => setNewCustomerAddress(e.target.value)} />
+                </div>
+              </div>
+            )}
+
+            {/* Walk-in */}
+            {!selectedCustomer && customerMode === "walkin" && (
+              <div className="p-4 rounded-lg border border-border/50 bg-muted/10 text-center">
+                <User className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm font-medium">Walk-in Customer</p>
+                <p className="text-xs text-muted-foreground mt-1">Bill will be generated without customer details</p>
+              </div>
+            )}
+
+            {/* Selected Customer Display */}
+            {selectedCustomer && (
               <div className={`p-3 rounded-lg border ${isBirthday ? "border-pink-500/30 bg-pink-500/5" : "border-border/50 bg-muted/30"}`}>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-8 w-8">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
                       <AvatarFallback className="bg-primary/20 text-primary text-xs">{selectedCustomer.name?.split(" ").map((n) => n[0]).join("")}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="text-sm font-semibold flex items-center gap-1.5">{selectedCustomer.name} {isBirthday && <Badge className="bg-gradient-to-r from-pink-500 to-orange-400 text-white text-[10px] px-1.5"><Cake className="w-3 h-3 mr-0.5" />Birthday!</Badge>}</p>
-                      <p className="text-xs text-muted-foreground">{selectedCustomer.phone} {selectedCustomer.email && `• ${selectedCustomer.email}`}</p>
+                      <p className="text-sm font-semibold flex items-center gap-1.5">
+                        {selectedCustomer.name}
+                        {isBirthday && <Badge className="bg-gradient-to-r from-pink-500 to-orange-400 text-white text-[10px] px-1.5"><Cake className="w-3 h-3 mr-0.5" />Birthday!</Badge>}
+                      </p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <Phone className="w-3 h-3" />{selectedCustomer.phone}
+                        {selectedCustomer.email && <><span>•</span><Mail className="w-3 h-3" />{selectedCustomer.email}</>}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Total Purchases: ₹{(selectedCustomer.total_purchases || 0).toLocaleString()} • Points: {selectedCustomer.loyalty_points || 0}</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setSelectedCustomer(null)}>Change</Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setSelectedCustomer(null); setCustomerMode("search"); }}>Change</Button>
                 </div>
+                {isBirthday && !birthdayDiscountApplied && cart.length > 0 && (
+                  <Button variant="outline" size="sm" className="w-full mt-2 border-pink-500/30 text-pink-600 hover:bg-pink-500/10 gap-2 text-xs"
+                    onClick={() => { setBirthdayDiscountApplied(true); toast.success("🎂 Birthday 5% discount applied!"); }}>
+                    <Gift className="w-3.5 h-3.5" /> Apply 5% Birthday Discount
+                  </Button>
+                )}
+                {birthdayDiscountApplied && (
+                  <div className="flex items-center justify-between text-xs p-2 rounded-md bg-pink-500/10 border border-pink-500/20 mt-2">
+                    <span className="flex items-center gap-1.5 text-pink-600 dark:text-pink-400 font-medium"><Gift className="w-3 h-3" />Birthday Discount (5%)</span>
+                    <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1.5 text-muted-foreground" onClick={() => setBirthdayDiscountApplied(false)}>Remove</Button>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Bill Summary */}
             <div className="rounded-lg border border-border/50 p-3 space-y-1.5">
-              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Items</span><span>{cart.length}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-muted-foreground">GST (3%)</span><span>₹{tax.toLocaleString()}</span></div>
-              {birthdayDiscount > 0 && (
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Discount</span><span className="text-green-500">-₹{birthdayDiscount.toLocaleString()}</span></div>
-              )}
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Bill Summary</p>
+              {cart.map((item) => (
+                <div key={item.id} className="flex justify-between text-xs">
+                  <span className="text-muted-foreground truncate mr-2">{item.name} × {item.qty}</span>
+                  <span className="shrink-0">₹{(item.unit_price * item.qty).toLocaleString()}</span>
+                </div>
+              ))}
+              <div className="border-t border-border pt-1.5 mt-1.5 space-y-1">
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">GST (3%)</span><span>₹{tax.toLocaleString()}</span></div>
+                {birthdayDiscount > 0 && (
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Discount</span><span className="text-green-500">-₹{birthdayDiscount.toLocaleString()}</span></div>
+                )}
+              </div>
               <div className="border-t border-border pt-2 mt-1">
                 <div className="flex justify-between font-bold text-lg"><span>Total</span><span className="text-primary">₹{total.toLocaleString()}</span></div>
               </div>
-              <p className="text-[11px] text-muted-foreground">Payment: {paymentMethod} {selectedCustomer ? `• Customer: ${selectedCustomer.name}` : "• Walk-in Customer"}</p>
+              <p className="text-[11px] text-muted-foreground">
+                Payment: {paymentMethod}
+                {selectedCustomer ? ` • ${selectedCustomer.name}` : customerMode === "new" && newCustomerName ? ` • ${newCustomerName}` : " • Walk-in"}
+              </p>
             </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowCheckout(false)}>Cancel</Button>
-            <Button variant="gold" disabled={completeSaleMutation.isPending} onClick={() => completeSaleMutation.mutate()}>
+            <Button variant="gold"
+              disabled={completeSaleMutation.isPending || (customerMode === "new" && (!newCustomerName.trim() || !newCustomerPhone.trim()))}
+              onClick={() => completeSaleMutation.mutate()}>
               {completeSaleMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Confirm & Generate Bill
             </Button>
