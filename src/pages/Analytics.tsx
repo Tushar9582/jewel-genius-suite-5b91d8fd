@@ -295,6 +295,7 @@ const Analytics = () => {
           <Tabs defaultValue="billing" className="space-y-4">
             <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
               <TabsTrigger value="billing" className="text-xs sm:text-sm">💰 Billing & Revenue</TabsTrigger>
+              <TabsTrigger value="imitation" className="text-xs sm:text-sm">✨ Imitation</TabsTrigger>
               <TabsTrigger value="inventory" className="text-xs sm:text-sm">📦 Inventory</TabsTrigger>
               <TabsTrigger value="customers" className="text-xs sm:text-sm">👥 Customers</TabsTrigger>
               <TabsTrigger value="hr" className="text-xs sm:text-sm">🏢 HR & Payroll</TabsTrigger>
