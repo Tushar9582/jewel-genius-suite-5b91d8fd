@@ -231,7 +231,25 @@ const Analytics = () => {
       .slice(0, 8)
       .map(p => ({ name: p.name.length > 12 ? p.name.slice(0, 12) + "…" : p.name, stock: p.stock, fullName: p.name }));
 
-    return { revenueByMonth, paymentData, categoryData, metalData, topCustomers, deptData, investmentByMetal, cityData, lowStockData };
+    // Imitation vs Regular monthly breakdown
+    const imitationByMonth: Record<string, number> = {};
+    const regularByMonth: Record<string, number> = {};
+    sales.forEach(s => {
+      const d = new Date(s.created_at);
+      const key = months[d.getMonth()];
+      if (isImitationSale(s)) {
+        imitationByMonth[key] = (imitationByMonth[key] || 0) + Number(s.total || 0);
+      } else {
+        regularByMonth[key] = (regularByMonth[key] || 0) + Number(s.total || 0);
+      }
+    });
+    const imitationVsRegular = months.map(m => ({
+      month: m,
+      regular: regularByMonth[m] || 0,
+      imitation: imitationByMonth[m] || 0,
+    }));
+
+    return { revenueByMonth, paymentData, categoryData, metalData, topCustomers, deptData, investmentByMetal, cityData, lowStockData, imitationVsRegular };
   }, [sales, products, customers, employees, investments]);
 
   // Fallbacks for empty data
