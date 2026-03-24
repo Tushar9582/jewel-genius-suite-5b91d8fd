@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   TrendingUp, TrendingDown, Download, Calendar, PieChart, Activity,
   Loader2, IndianRupee, ShoppingBag, Users, Package, Gem, BarChart3,
-  UserCog, Wallet, ArrowUpRight, ArrowDownRight, Target, Award, Repeat,
+  UserCog, Wallet, ArrowUpRight, ArrowDownRight, Target, Award, Repeat, Sparkles,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
