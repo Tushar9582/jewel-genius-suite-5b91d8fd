@@ -163,6 +163,7 @@ const Analytics = () => {
     return {
       totalRevenue, totalOrders, avgOrderValue, totalDiscount, totalTax,
       todayRevenue, todaySalesCount: todaySales.length,
+      imitationRevenue, imitationOrders, regularRevenue,
       totalStock, inventoryValue, lowStockProducts, outOfStockProducts, totalWeight,
       totalCustomers, totalLoyaltyPoints, avgPurchasePerCustomer, repeatCustomers,
       activeEmployees, totalEmployees,
