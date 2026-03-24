@@ -50,6 +50,8 @@ const Customers = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", address: "", city: "" });
   const [dob, setDob] = useState<Date | undefined>();
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: customers = [], isLoading } = useQuery({
