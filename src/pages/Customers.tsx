@@ -17,6 +17,7 @@ import { CalendarIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getAll, addItem } from "@/lib/firebaseDb";
+import { CustomerDetailDialog } from "@/components/customers/CustomerDetailDialog";
 
 interface Customer {
   id: string;
