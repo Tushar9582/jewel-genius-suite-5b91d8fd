@@ -111,12 +111,26 @@ const Analytics = () => {
 
   const isLoading = sL || pL || cL || eL || iL;
 
+  const isImitationSale = (s: Sale) => {
+    const items = Array.isArray(s.items) ? s.items : [];
+    return items.some((item: any) => {
+      const name = (item.name || "").toLowerCase();
+      return name.includes("imitation") || name.includes("artificial") || name.includes("fashion");
+    });
+  };
+
   const metrics = useMemo(() => {
     const totalRevenue = sales.reduce((a, s) => a + Number(s.total || 0), 0);
     const totalOrders = sales.length;
     const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
     const totalDiscount = sales.reduce((a, s) => a + Number(s.discount || 0), 0);
     const totalTax = sales.reduce((a, s) => a + Number(s.tax || 0), 0);
+
+    // Imitation stats
+    const imitationSales = sales.filter(isImitationSale);
+    const imitationRevenue = imitationSales.reduce((a, s) => a + Number(s.total || 0), 0);
+    const imitationOrders = imitationSales.length;
+    const regularRevenue = totalRevenue - imitationRevenue;
 
     // Today's stats
     const today = new Date().toDateString();
