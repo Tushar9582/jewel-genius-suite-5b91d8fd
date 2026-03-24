@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   TrendingUp, TrendingDown, Download, Calendar, PieChart, Activity,
   Loader2, IndianRupee, ShoppingBag, Users, Package, Gem, BarChart3,
-  UserCog, Wallet, ArrowUpRight, ArrowDownRight, Target, Award, Repeat,
+  UserCog, Wallet, ArrowUpRight, ArrowDownRight, Target, Award, Repeat, Sparkles,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -111,12 +111,26 @@ const Analytics = () => {
 
   const isLoading = sL || pL || cL || eL || iL;
 
+  const isImitationSale = (s: Sale) => {
+    const items = Array.isArray(s.items) ? s.items : [];
+    return items.some((item: any) => {
+      const name = (item.name || "").toLowerCase();
+      return name.includes("imitation") || name.includes("artificial") || name.includes("fashion");
+    });
+  };
+
   const metrics = useMemo(() => {
     const totalRevenue = sales.reduce((a, s) => a + Number(s.total || 0), 0);
     const totalOrders = sales.length;
     const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
     const totalDiscount = sales.reduce((a, s) => a + Number(s.discount || 0), 0);
     const totalTax = sales.reduce((a, s) => a + Number(s.tax || 0), 0);
+
+    // Imitation stats
+    const imitationSales = sales.filter(isImitationSale);
+    const imitationRevenue = imitationSales.reduce((a, s) => a + Number(s.total || 0), 0);
+    const imitationOrders = imitationSales.length;
+    const regularRevenue = totalRevenue - imitationRevenue;
 
     // Today's stats
     const today = new Date().toDateString();
@@ -149,6 +163,7 @@ const Analytics = () => {
     return {
       totalRevenue, totalOrders, avgOrderValue, totalDiscount, totalTax,
       todayRevenue, todaySalesCount: todaySales.length,
+      imitationRevenue, imitationOrders, regularRevenue,
       totalStock, inventoryValue, lowStockProducts, outOfStockProducts, totalWeight,
       totalCustomers, totalLoyaltyPoints, avgPurchasePerCustomer, repeatCustomers,
       activeEmployees, totalEmployees,
@@ -216,7 +231,25 @@ const Analytics = () => {
       .slice(0, 8)
       .map(p => ({ name: p.name.length > 12 ? p.name.slice(0, 12) + "…" : p.name, stock: p.stock, fullName: p.name }));
 
-    return { revenueByMonth, paymentData, categoryData, metalData, topCustomers, deptData, investmentByMetal, cityData, lowStockData };
+    // Imitation vs Regular monthly breakdown
+    const imitationByMonth: Record<string, number> = {};
+    const regularByMonth: Record<string, number> = {};
+    sales.forEach(s => {
+      const d = new Date(s.created_at);
+      const key = months[d.getMonth()];
+      if (isImitationSale(s)) {
+        imitationByMonth[key] = (imitationByMonth[key] || 0) + Number(s.total || 0);
+      } else {
+        regularByMonth[key] = (regularByMonth[key] || 0) + Number(s.total || 0);
+      }
+    });
+    const imitationVsRegular = months.map(m => ({
+      month: m,
+      regular: regularByMonth[m] || 0,
+      imitation: imitationByMonth[m] || 0,
+    }));
+
+    return { revenueByMonth, paymentData, categoryData, metalData, topCustomers, deptData, investmentByMetal, cityData, lowStockData, imitationVsRegular };
   }, [sales, products, customers, employees, investments]);
 
   // Fallbacks for empty data
@@ -262,6 +295,7 @@ const Analytics = () => {
           <Tabs defaultValue="billing" className="space-y-4">
             <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
               <TabsTrigger value="billing" className="text-xs sm:text-sm">💰 Billing & Revenue</TabsTrigger>
+              <TabsTrigger value="imitation" className="text-xs sm:text-sm">✨ Imitation</TabsTrigger>
               <TabsTrigger value="inventory" className="text-xs sm:text-sm">📦 Inventory</TabsTrigger>
               <TabsTrigger value="customers" className="text-xs sm:text-sm">👥 Customers</TabsTrigger>
               <TabsTrigger value="hr" className="text-xs sm:text-sm">🏢 HR & Payroll</TabsTrigger>
@@ -322,6 +356,73 @@ const Analytics = () => {
                       </ResponsiveContainer>
                     </div>
                     <PieLegend data={displayPayment} />
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* === IMITATION TAB === */}
+            <TabsContent value="imitation" className="space-y-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <StatMini label="Imitation Revenue" value={formatCurrency(metrics.imitationRevenue)} icon={Sparkles} />
+                <StatMini label="Imitation Orders" value={metrics.imitationOrders.toString()} icon={ShoppingBag} />
+                <StatMini label="Regular Revenue" value={formatCurrency(metrics.regularRevenue)} icon={Gem} />
+                <StatMini label="Imitation Share" value={`${metrics.totalRevenue > 0 ? ((metrics.imitationRevenue / metrics.totalRevenue) * 100).toFixed(1) : 0}%`} icon={PieChart} />
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                <Card variant="elevated" className="xl:col-span-2">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base"><Sparkles className="w-4 h-4 text-purple-500" />Imitation vs Regular Revenue (Monthly)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData.imitationVsRegular}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={v => formatCurrency(v)} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend />
+                          <Bar dataKey="regular" fill="hsl(43, 74%, 49%)" radius={[4, 4, 0, 0]} name="regular" />
+                          <Bar dataKey="imitation" fill="hsl(270, 60%, 55%)" radius={[4, 4, 0, 0]} name="imitation" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card variant="elevated">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base"><PieChart className="w-4 h-4 text-purple-500" />Revenue Split</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RePieChart>
+                          <Pie
+                            data={[
+                              { name: "Regular", value: metrics.regularRevenue, color: "hsl(43, 74%, 49%)" },
+                              { name: "Imitation", value: metrics.imitationRevenue, color: "hsl(270, 60%, 55%)" },
+                            ].filter(d => d.value > 0).length > 0 ? [
+                              { name: "Regular", value: metrics.regularRevenue, color: "hsl(43, 74%, 49%)" },
+                              { name: "Imitation", value: metrics.imitationRevenue, color: "hsl(270, 60%, 55%)" },
+                            ] : [{ name: "No Data", value: 1, color: "hsl(var(--muted))" }]}
+                            cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={4} dataKey="value"
+                          >
+                            {[
+                              { color: "hsl(43, 74%, 49%)" },
+                              { color: "hsl(270, 60%, 55%)" },
+                            ].map((e, i) => <Cell key={i} fill={e.color} />)}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        </RePieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <PieLegend data={[
+                      { name: "Regular", value: metrics.regularRevenue, color: "hsl(43, 74%, 49%)" },
+                      { name: "Imitation", value: metrics.imitationRevenue, color: "hsl(270, 60%, 55%)" },
+                    ].filter(d => d.value > 0)} />
                   </CardContent>
                 </Card>
               </div>

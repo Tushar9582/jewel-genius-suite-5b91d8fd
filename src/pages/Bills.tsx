@@ -4,13 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Receipt, Search, Eye, IndianRupee, ShoppingBag, Calendar, Printer, Download, MessageCircle } from "lucide-react";
+import { Receipt, Search, Eye, IndianRupee, ShoppingBag, Calendar, Printer, Download, MessageCircle, Gem, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getAll } from "@/lib/firebaseDb";
 import { format } from "date-fns";
@@ -20,6 +21,7 @@ interface SaleItem {
   name: string;
   qty: number;
   unit_price: number;
+  price?: number;
   weight?: number;
   purity?: string;
 }
@@ -38,6 +40,14 @@ interface Sale {
   created_at: string;
 }
 
+function isImitationSale(sale: Sale): boolean {
+  const items = Array.isArray(sale.items) ? sale.items : [];
+  return items.some((item) => {
+    const name = (item.name || "").toLowerCase();
+    return name.includes("imitation") || name.includes("artificial") || name.includes("fashion");
+  });
+}
+
 const Bills = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBill, setSelectedBill] = useState<Sale | null>(null);
@@ -52,7 +62,7 @@ const Bills = () => {
       `💳 Payment: ${sale.payment_method}`,
       "",
       "*Items:*",
-      ...items.map((item: SaleItem) => `  • ${item.name} × ${item.qty} = ₹${((item.unit_price || 0) * (item.qty || 1)).toLocaleString("en-IN")}`),
+      ...items.map((item: SaleItem) => `  • ${item.name} × ${item.qty} = ₹${((item.unit_price || item.price || 0) * (item.qty || 1)).toLocaleString("en-IN")}`),
       "",
       `Subtotal: ₹${(sale.subtotal || 0).toLocaleString("en-IN")}`,
       `Tax: ₹${(sale.tax || 0).toLocaleString("en-IN")}`,
@@ -64,8 +74,7 @@ const Bills = () => {
 
   const handleWhatsAppShare = (sale: Sale) => {
     const text = generateBillText(sale);
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   const handlePrint = () => {
@@ -114,152 +123,145 @@ const Bills = () => {
     .filter((s) => s.status === "Completed")
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  const filtered = completedSales.filter((s) => {
+  const regularSales = completedSales.filter((s) => !isImitationSale(s));
+  const imitationSales = completedSales.filter((s) => isImitationSale(s));
+
+  const filterSales = (list: Sale[]) => {
     const q = searchQuery.toLowerCase();
-    return (
+    return list.filter((s) =>
       s.invoice_number?.toLowerCase().includes(q) ||
       s.customer_name?.toLowerCase().includes(q) ||
       s.payment_method?.toLowerCase().includes(q)
     );
-  });
+  };
 
   const totalRevenue = completedSales.reduce((sum, s) => sum + (s.total || 0), 0);
+  const imitationRevenue = imitationSales.reduce((sum, s) => sum + (s.total || 0), 0);
   const todaySales = completedSales.filter(
     (s) => new Date(s.created_at).toDateString() === new Date().toDateString()
   );
   const todayRevenue = todaySales.reduce((sum, s) => sum + (s.total || 0), 0);
 
+  const renderBillTable = (list: Sale[]) => {
+    const filtered = filterSales(list);
+    if (filtered.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <ShoppingBag className="w-12 h-12 mb-3 opacity-30" />
+          <p>No bills found</p>
+        </div>
+      );
+    }
+    return (
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Invoice #</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Items</TableHead>
+              <TableHead className="text-right">Total</TableHead>
+              <TableHead>Payment</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="text-center">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((sale) => {
+              const items = Array.isArray(sale.items) ? sale.items : [];
+              return (
+                <TableRow key={sale.id}>
+                  <TableCell className="font-mono font-medium text-primary">{sale.invoice_number}</TableCell>
+                  <TableCell>{sale.customer_name || "Walk-in"}</TableCell>
+                  <TableCell>{items.length} item(s)</TableCell>
+                  <TableCell className="text-right font-semibold">₹{(sale.total || 0).toLocaleString("en-IN")}</TableCell>
+                  <TableCell><Badge variant="outline" className="text-xs">{sale.payment_method}</Badge></TableCell>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {sale.created_at ? format(new Date(sale.created_at), "dd MMM yyyy, hh:mm a") : "—"}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => setSelectedBill(sale)} title="View"><Eye className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleWhatsAppShare(sale)} title="WhatsApp" className="text-green-600 hover:text-green-700"><MessageCircle className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleExport(sale)} title="Export"><Download className="w-4 h-4" /></Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-2xl font-display font-bold text-foreground">Bills</h1>
           <p className="text-muted-foreground text-sm">All completed sale invoices</p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card className="border-border/50">
             <CardContent className="pt-5 pb-4 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Receipt className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Total Bills</p>
-                <p className="text-xl font-bold text-foreground">{completedSales.length}</p>
-              </div>
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Receipt className="w-5 h-5 text-primary" /></div>
+              <div><p className="text-xs text-muted-foreground">Total Bills</p><p className="text-xl font-bold text-foreground">{completedSales.length}</p></div>
             </CardContent>
           </Card>
           <Card className="border-border/50">
             <CardContent className="pt-5 pb-4 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <IndianRupee className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Total Revenue</p>
-                <p className="text-xl font-bold text-foreground">₹{totalRevenue.toLocaleString("en-IN")}</p>
-              </div>
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><IndianRupee className="w-5 h-5 text-primary" /></div>
+              <div><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-xl font-bold text-foreground">₹{totalRevenue.toLocaleString("en-IN")}</p></div>
             </CardContent>
           </Card>
           <Card className="border-border/50">
             <CardContent className="pt-5 pb-4 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Today's Revenue</p>
-                <p className="text-xl font-bold text-foreground">₹{todayRevenue.toLocaleString("en-IN")}</p>
-              </div>
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Calendar className="w-5 h-5 text-primary" /></div>
+              <div><p className="text-xs text-muted-foreground">Today's Revenue</p><p className="text-xl font-bold text-foreground">₹{todayRevenue.toLocaleString("en-IN")}</p></div>
+            </CardContent>
+          </Card>
+          <Card className="border-border/50">
+            <CardContent className="pt-5 pb-4 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center"><Sparkles className="w-5 h-5 text-purple-500" /></div>
+              <div><p className="text-xs text-muted-foreground">Imitation Revenue</p><p className="text-xl font-bold text-purple-600">₹{imitationRevenue.toLocaleString("en-IN")}</p></div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Search */}
+        {/* Search + Tabs */}
         <Card className="border-border/50">
           <CardHeader className="pb-3">
             <div className="flex flex-col sm:flex-row justify-between gap-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-primary" />
-                All Invoices
-              </CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2"><Receipt className="w-5 h-5 text-primary" />Invoices</CardTitle>
               <div className="relative w-full sm:w-72">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by invoice, customer..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
+                <Input placeholder="Search by invoice, customer..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
               </div>
             </div>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="flex items-center justify-center py-12 text-muted-foreground">
-                Loading bills...
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <ShoppingBag className="w-12 h-12 mb-3 opacity-30" />
-                <p>No bills found</p>
-              </div>
+              <div className="flex items-center justify-center py-12 text-muted-foreground">Loading bills...</div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.map((sale) => {
-                      const items = Array.isArray(sale.items) ? sale.items : [];
-                      return (
-                        <TableRow key={sale.id}>
-                          <TableCell className="font-mono font-medium text-primary">
-                            {sale.invoice_number}
-                          </TableCell>
-                          <TableCell>{sale.customer_name || "Walk-in"}</TableCell>
-                          <TableCell>{items.length} item(s)</TableCell>
-                          <TableCell className="text-right font-semibold">
-                            ₹{(sale.total || 0).toLocaleString("en-IN")}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {sale.payment_method}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-xs">
-                            {sale.created_at
-                              ? format(new Date(sale.created_at), "dd MMM yyyy, hh:mm a")
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => setSelectedBill(sale)} title="View">
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleWhatsAppShare(sale)} title="WhatsApp" className="text-green-600 hover:text-green-700">
-                                <MessageCircle className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleExport(sale)} title="Export">
-                                <Download className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+              <Tabs defaultValue="all">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="all" className="text-xs sm:text-sm gap-1.5">
+                    <Receipt className="w-3.5 h-3.5" /> All Bills ({completedSales.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="regular" className="text-xs sm:text-sm gap-1.5">
+                    <Gem className="w-3.5 h-3.5" /> Regular ({regularSales.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="imitation" className="text-xs sm:text-sm gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" /> Imitation ({imitationSales.length})
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="all">{renderBillTable(completedSales)}</TabsContent>
+                <TabsContent value="regular">{renderBillTable(regularSales)}</TabsContent>
+                <TabsContent value="imitation">{renderBillTable(imitationSales)}</TabsContent>
+              </Tabs>
             )}
           </CardContent>
         </Card>
@@ -271,32 +273,23 @@ const Bills = () => {
               <DialogTitle className="flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-primary" />
                 Invoice {selectedBill?.invoice_number}
+                {selectedBill && isImitationSale(selectedBill) && (
+                  <Badge className="bg-purple-500/20 text-purple-600 border-purple-500/30 text-[10px]"><Sparkles className="w-3 h-3 mr-0.5" />Imitation</Badge>
+                )}
               </DialogTitle>
             </DialogHeader>
             {selectedBill && (
               <div className="space-y-4">
-                {/* Printable Bill Content */}
                 <div ref={printRef}>
                   <div style={{ textAlign: "center", marginBottom: 16, borderBottom: "2px solid #c8a45a", paddingBottom: 10 }}>
                     <h1 style={{ fontSize: 18, margin: 0, color: "#c8a45a" }}>INVOICE</h1>
                     <p style={{ fontSize: 12, margin: "4px 0 0", color: "#666" }}>{selectedBill.invoice_number}</p>
                   </div>
-
                   <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Customer</span>
-                      <span className="font-medium">{selectedBill.customer_name || "Walk-in"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Date</span>
-                      <span>{selectedBill.created_at ? format(new Date(selectedBill.created_at), "dd MMM yyyy, hh:mm a") : "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Payment</span>
-                      <span>{selectedBill.payment_method}</span>
-                    </div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Customer</span><span className="font-medium">{selectedBill.customer_name || "Walk-in"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span>{selectedBill.created_at ? format(new Date(selectedBill.created_at), "dd MMM yyyy, hh:mm a") : "—"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Payment</span><span>{selectedBill.payment_method}</span></div>
                   </div>
-
                   <table style={{ width: "100%", borderCollapse: "collapse", margin: "12px 0" }}>
                     <thead>
                       <tr style={{ borderBottom: "2px solid #ddd" }}>
@@ -310,45 +303,24 @@ const Bills = () => {
                         <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
                           <td style={{ padding: "6px 4px", fontSize: 13 }}>{item.name}</td>
                           <td style={{ textAlign: "center", padding: "6px 4px", fontSize: 13 }}>{item.qty}</td>
-                          <td style={{ textAlign: "right", padding: "6px 4px", fontSize: 13 }}>₹{((item.unit_price || 0) * (item.qty || 1)).toLocaleString("en-IN")}</td>
+                          <td style={{ textAlign: "right", padding: "6px 4px", fontSize: 13 }}>₹{((item.unit_price || item.price || 0) * (item.qty || 1)).toLocaleString("en-IN")}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-
                   <div className="border-t border-border pt-3 space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Subtotal</span>
-                      <span>₹{(selectedBill.subtotal || 0).toLocaleString("en-IN")}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tax (3%)</span>
-                      <span>₹{(selectedBill.tax || 0).toLocaleString("en-IN")}</span>
-                    </div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>₹{(selectedBill.subtotal || 0).toLocaleString("en-IN")}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Tax (3%)</span><span>₹{(selectedBill.tax || 0).toLocaleString("en-IN")}</span></div>
                     {(selectedBill.discount || 0) > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Discount</span>
-                        <span className="text-destructive">-₹{(selectedBill.discount || 0).toLocaleString("en-IN")}</span>
-                      </div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="text-destructive">-₹{(selectedBill.discount || 0).toLocaleString("en-IN")}</span></div>
                     )}
-                    <div className="flex justify-between font-bold text-base pt-1 border-t border-border">
-                      <span>Total</span>
-                      <span className="text-primary">₹{(selectedBill.total || 0).toLocaleString("en-IN")}</span>
-                    </div>
+                    <div className="flex justify-between font-bold text-base pt-1 border-t border-border"><span>Total</span><span className="text-primary">₹{(selectedBill.total || 0).toLocaleString("en-IN")}</span></div>
                   </div>
                 </div>
-
-                {/* Action Buttons */}
                 <div className="flex gap-2 pt-2 border-t border-border">
-                  <Button variant="outline" size="sm" className="flex-1" onClick={handlePrint}>
-                    <Printer className="w-4 h-4 mr-1" /> Print
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex-1 text-green-600 border-green-600/30 hover:bg-green-50" onClick={() => handleWhatsAppShare(selectedBill)}>
-                    <MessageCircle className="w-4 h-4 mr-1" /> WhatsApp
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleExport(selectedBill)}>
-                    <Download className="w-4 h-4 mr-1" /> Export
-                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={handlePrint}><Printer className="w-4 h-4 mr-1" /> Print</Button>
+                  <Button variant="outline" size="sm" className="flex-1 text-green-600 border-green-600/30 hover:bg-green-50" onClick={() => handleWhatsAppShare(selectedBill)}><MessageCircle className="w-4 h-4 mr-1" /> WhatsApp</Button>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleExport(selectedBill)}><Download className="w-4 h-4 mr-1" /> Export</Button>
                 </div>
               </div>
             )}

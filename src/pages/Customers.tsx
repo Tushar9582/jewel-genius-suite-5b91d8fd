@@ -17,6 +17,7 @@ import { CalendarIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getAll, addItem } from "@/lib/firebaseDb";
+import { CustomerDetailDialog } from "@/components/customers/CustomerDetailDialog";
 
 interface Customer {
   id: string;
@@ -49,6 +50,8 @@ const Customers = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", address: "", city: "" });
   const [dob, setDob] = useState<Date | undefined>();
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: customers = [], isLoading } = useQuery({
@@ -202,7 +205,7 @@ const Customers = () => {
                 const tierInfo = getTierColor(customer.total_purchases || 0);
                 const birthday = isTodayBirthday(customer.date_of_birth);
                 return (
-                  <div key={customer.id} className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border transition-colors cursor-pointer ${birthday ? "bg-pink-500/5 border-pink-500/30 hover:bg-pink-500/10" : "bg-muted/30 border-border/50 hover:bg-muted/50"}`}>
+                  <div key={customer.id} className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border transition-colors cursor-pointer ${birthday ? "bg-pink-500/5 border-pink-500/30 hover:bg-pink-500/10" : "bg-muted/30 border-border/50 hover:bg-muted/50"}`} onClick={() => { setSelectedCustomer(customer); setDetailOpen(true); }}>
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0"><AvatarFallback className="bg-primary/20 text-primary font-semibold text-sm">{customer.name?.split(" ").map((n) => n[0]).join("")}</AvatarFallback></Avatar>
                       <div className="flex-1 min-w-0">
@@ -235,6 +238,8 @@ const Customers = () => {
           )}
         </CardContent>
       </Card>
+
+      <CustomerDetailDialog customer={selectedCustomer} open={detailOpen} onOpenChange={setDetailOpen} />
     </DashboardLayout>
   );
 };
