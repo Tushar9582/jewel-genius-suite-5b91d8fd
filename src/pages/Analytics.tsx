@@ -361,6 +361,73 @@ const Analytics = () => {
               </div>
             </TabsContent>
 
+            {/* === IMITATION TAB === */}
+            <TabsContent value="imitation" className="space-y-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <StatMini label="Imitation Revenue" value={formatCurrency(metrics.imitationRevenue)} icon={Sparkles} />
+                <StatMini label="Imitation Orders" value={metrics.imitationOrders.toString()} icon={ShoppingBag} />
+                <StatMini label="Regular Revenue" value={formatCurrency(metrics.regularRevenue)} icon={Gem} />
+                <StatMini label="Imitation Share" value={`${metrics.totalRevenue > 0 ? ((metrics.imitationRevenue / metrics.totalRevenue) * 100).toFixed(1) : 0}%`} icon={PieChart} />
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                <Card variant="elevated" className="xl:col-span-2">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base"><Sparkles className="w-4 h-4 text-purple-500" />Imitation vs Regular Revenue (Monthly)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData.imitationVsRegular}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={v => formatCurrency(v)} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend />
+                          <Bar dataKey="regular" fill="hsl(43, 74%, 49%)" radius={[4, 4, 0, 0]} name="regular" />
+                          <Bar dataKey="imitation" fill="hsl(270, 60%, 55%)" radius={[4, 4, 0, 0]} name="imitation" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card variant="elevated">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base"><PieChart className="w-4 h-4 text-purple-500" />Revenue Split</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RePieChart>
+                          <Pie
+                            data={[
+                              { name: "Regular", value: metrics.regularRevenue, color: "hsl(43, 74%, 49%)" },
+                              { name: "Imitation", value: metrics.imitationRevenue, color: "hsl(270, 60%, 55%)" },
+                            ].filter(d => d.value > 0).length > 0 ? [
+                              { name: "Regular", value: metrics.regularRevenue, color: "hsl(43, 74%, 49%)" },
+                              { name: "Imitation", value: metrics.imitationRevenue, color: "hsl(270, 60%, 55%)" },
+                            ] : [{ name: "No Data", value: 1, color: "hsl(var(--muted))" }]}
+                            cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={4} dataKey="value"
+                          >
+                            {[
+                              { color: "hsl(43, 74%, 49%)" },
+                              { color: "hsl(270, 60%, 55%)" },
+                            ].map((e, i) => <Cell key={i} fill={e.color} />)}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        </RePieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <PieLegend data={[
+                      { name: "Regular", value: metrics.regularRevenue, color: "hsl(43, 74%, 49%)" },
+                      { name: "Imitation", value: metrics.imitationRevenue, color: "hsl(270, 60%, 55%)" },
+                    ].filter(d => d.value > 0)} />
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
             {/* === INVENTORY TAB === */}
             <TabsContent value="inventory" className="space-y-4">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

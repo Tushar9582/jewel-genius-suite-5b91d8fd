@@ -238,6 +238,8 @@ const Customers = () => {
           )}
         </CardContent>
       </Card>
+
+      <CustomerDetailDialog customer={selectedCustomer} open={detailOpen} onOpenChange={setDetailOpen} />
     </DashboardLayout>
   );
 };
