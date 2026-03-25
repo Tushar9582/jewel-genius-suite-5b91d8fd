@@ -5,15 +5,23 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Receipt, Search, Eye, IndianRupee, ShoppingBag, Calendar, Printer, Download, MessageCircle, Gem, Sparkles } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { getAll } from "@/lib/firebaseDb";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Receipt, Search, Eye, IndianRupee, ShoppingBag, Calendar, Printer, Download, MessageCircle, Gem, Sparkles, Edit2, Trash2, Save, X, Loader2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getAll, updateItem, deleteItem } from "@/lib/firebaseDb";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -30,6 +38,7 @@ interface Sale {
   id: string;
   invoice_number: string;
   customer_name?: string;
+  customer_phone?: string;
   items: SaleItem[];
   subtotal: number;
   tax: number;
@@ -51,7 +60,11 @@ function isImitationSale(sale: Sale): boolean {
 const Bills = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBill, setSelectedBill] = useState<Sale | null>(null);
+  const [editingBill, setEditingBill] = useState<Sale | null>(null);
+  const [deletingBill, setDeletingBill] = useState<Sale | null>(null);
+  const [editData, setEditData] = useState({ customer_name: "", payment_method: "", discount: 0 });
   const printRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   const generateBillText = (sale: Sale) => {
     const items = Array.isArray(sale.items) ? sale.items : [];
@@ -119,6 +132,51 @@ const Bills = () => {
     queryFn: () => getAll("sales") as Promise<Sale[]>,
   });
 
+  const updateBillMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingBill) return;
+      const subtotal = (Array.isArray(editingBill.items) ? editingBill.items : [])
+        .reduce((s, i) => s + (i.unit_price || i.price || 0) * (i.qty || 1), 0);
+      const tax = Math.round(subtotal * 0.03);
+      const total = subtotal + tax - (editData.discount || 0);
+      await updateItem("sales", editingBill.id, {
+        customer_name: editData.customer_name || null,
+        payment_method: editData.payment_method,
+        discount: editData.discount || 0,
+        subtotal, tax, total,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      toast.success("Bill updated successfully!");
+      setEditingBill(null);
+    },
+    onError: (e) => toast.error("Failed to update: " + e.message),
+  });
+
+  const deleteBillMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingBill) return;
+      await deleteItem("sales", deletingBill.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      toast.success("Bill deleted successfully!");
+      setDeletingBill(null);
+      setSelectedBill(null);
+    },
+    onError: (e) => toast.error("Failed to delete: " + e.message),
+  });
+
+  const startEditing = (sale: Sale) => {
+    setEditData({
+      customer_name: sale.customer_name || "",
+      payment_method: sale.payment_method || "Cash",
+      discount: sale.discount || 0,
+    });
+    setEditingBill(sale);
+  };
+
   const completedSales = sales
     .filter((s) => s.status === "Completed")
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -182,6 +240,8 @@ const Bills = () => {
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Button variant="ghost" size="icon" onClick={() => setSelectedBill(sale)} title="View"><Eye className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => startEditing(sale)} title="Edit" className="text-blue-600 hover:text-blue-700"><Edit2 className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeletingBill(sale)} title="Delete" className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => handleWhatsAppShare(sale)} title="WhatsApp" className="text-green-600 hover:text-green-700"><MessageCircle className="w-4 h-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => handleExport(sale)} title="Export"><Download className="w-4 h-4" /></Button>
                     </div>
@@ -317,15 +377,78 @@ const Bills = () => {
                     <div className="flex justify-between font-bold text-base pt-1 border-t border-border"><span>Total</span><span className="text-primary">₹{(selectedBill.total || 0).toLocaleString("en-IN")}</span></div>
                   </div>
                 </div>
-                <div className="flex gap-2 pt-2 border-t border-border">
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                   <Button variant="outline" size="sm" className="flex-1" onClick={handlePrint}><Printer className="w-4 h-4 mr-1" /> Print</Button>
                   <Button variant="outline" size="sm" className="flex-1 text-green-600 border-green-600/30 hover:bg-green-50" onClick={() => handleWhatsAppShare(selectedBill)}><MessageCircle className="w-4 h-4 mr-1" /> WhatsApp</Button>
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => handleExport(selectedBill)}><Download className="w-4 h-4 mr-1" /> Export</Button>
+                  <Button variant="outline" size="sm" className="text-blue-600 border-blue-600/30 hover:bg-blue-50" onClick={() => { setSelectedBill(null); startEditing(selectedBill); }}><Edit2 className="w-4 h-4 mr-1" /> Edit</Button>
+                  <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => { setSelectedBill(null); setDeletingBill(selectedBill); }}><Trash2 className="w-4 h-4 mr-1" /> Delete</Button>
                 </div>
               </div>
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Edit Bill Dialog */}
+        <Dialog open={!!editingBill} onOpenChange={() => setEditingBill(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2"><Edit2 className="w-5 h-5 text-blue-600" /> Edit Bill — {editingBill?.invoice_number}</DialogTitle>
+            </DialogHeader>
+            {editingBill && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Customer Name</Label>
+                  <Input value={editData.customer_name} onChange={(e) => setEditData({ ...editData, customer_name: e.target.value })} placeholder="Walk-in" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Payment Method</Label>
+                  <Select value={editData.payment_method} onValueChange={(v) => setEditData({ ...editData, payment_method: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="UPI">UPI</SelectItem>
+                      <SelectItem value="Card">Card</SelectItem>
+                      <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Discount (₹)</Label>
+                  <Input type="number" min={0} value={editData.discount} onChange={(e) => setEditData({ ...editData, discount: Number(e.target.value) })} />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button variant="ghost" className="flex-1" onClick={() => setEditingBill(null)}><X className="w-4 h-4 mr-1" /> Cancel</Button>
+                  <Button variant="gold" className="flex-1" disabled={updateBillMutation.isPending} onClick={() => updateBillMutation.mutate()}>
+                    {updateBillMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Save
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation */}
+        <AlertDialog open={!!deletingBill} onOpenChange={() => setDeletingBill(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Bill?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete invoice <span className="font-semibold text-primary">{deletingBill?.invoice_number}</span>? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={deleteBillMutation.isPending}
+                onClick={() => deleteBillMutation.mutate()}
+              >
+                {deleteBillMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />} Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
