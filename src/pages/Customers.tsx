@@ -5,8 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Users, Search, Plus, Filter, Phone, Mail, Crown, Loader2, Cake } from "lucide-react";
+import { Users, Search, Plus, Filter, Phone, Mail, Crown, Loader2, Cake, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,7 +20,7 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getAll, addItem } from "@/lib/firebaseDb";
+import { getAll, addItem, deleteItem } from "@/lib/firebaseDb";
 import { CustomerDetailDialog } from "@/components/customers/CustomerDetailDialog";
 
 interface Customer {
@@ -52,6 +56,7 @@ const Customers = () => {
   const [dob, setDob] = useState<Date | undefined>();
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
   const queryClient = useQueryClient();
 
   const { data: customers = [], isLoading } = useQuery({
@@ -71,6 +76,19 @@ const Customers = () => {
       setDob(undefined);
     },
     onError: (error) => toast.error("Failed to add customer: " + error.message),
+  });
+
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingCustomer) return;
+      await deleteItem("customers", deletingCustomer.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast.success("Customer deleted successfully!");
+      setDeletingCustomer(null);
+    },
+    onError: (e) => toast.error("Failed to delete: " + e.message),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -205,8 +223,8 @@ const Customers = () => {
                 const tierInfo = getTierColor(customer.total_purchases || 0);
                 const birthday = isTodayBirthday(customer.date_of_birth);
                 return (
-                  <div key={customer.id} className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border transition-colors cursor-pointer ${birthday ? "bg-pink-500/5 border-pink-500/30 hover:bg-pink-500/10" : "bg-muted/30 border-border/50 hover:bg-muted/50"}`} onClick={() => { setSelectedCustomer(customer); setDetailOpen(true); }}>
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div key={customer.id} className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border transition-colors ${birthday ? "bg-pink-500/5 border-pink-500/30 hover:bg-pink-500/10" : "bg-muted/30 border-border/50 hover:bg-muted/50"}`}>
+                    <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer" onClick={() => { setSelectedCustomer(customer); setDetailOpen(true); }}>
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 shrink-0"><AvatarFallback className="bg-primary/20 text-primary font-semibold text-sm">{customer.name?.split(" ").map((n) => n[0]).join("")}</AvatarFallback></Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -227,9 +245,20 @@ const Customers = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="text-left sm:text-right flex sm:flex-col justify-between sm:justify-start items-center sm:items-end gap-2">
-                      <p className="font-semibold text-primary text-sm sm:text-base">{formatCurrency(customer.total_purchases || 0)}</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">{customer.loyalty_points || 0} points</p>
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
+                      <div className="text-left sm:text-right">
+                        <p className="font-semibold text-primary text-sm sm:text-base">{formatCurrency(customer.total_purchases || 0)}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{customer.loyalty_points || 0} points</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                        onClick={(e) => { e.stopPropagation(); setDeletingCustomer(customer); }}
+                        title="Delete customer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 );
@@ -240,6 +269,28 @@ const Customers = () => {
       </Card>
 
       <CustomerDetailDialog customer={selectedCustomer} open={detailOpen} onOpenChange={setDetailOpen} />
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deletingCustomer} onOpenChange={() => setDeletingCustomer(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Customer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <span className="font-semibold text-primary">{deletingCustomer?.name}</span>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteCustomerMutation.isPending}
+              onClick={() => deleteCustomerMutation.mutate()}
+            >
+              {deleteCustomerMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />} Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };
