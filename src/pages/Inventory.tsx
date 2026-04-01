@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getAll, addItem, updateItem, deleteItem } from "@/lib/firebaseDb";
+import { useUserData } from "@/hooks/useUserData";
 import { ProductBarcodeDialog, generateBarcode } from "@/components/inventory/ProductBarcode";
 
 interface Product {
