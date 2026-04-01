@@ -58,6 +58,7 @@ interface Employee {
 }
 
 export function EmployeeManagement() {
+  const { getAll, addItem, updateItem, deleteItem } = useUserData();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");

@@ -65,6 +65,7 @@ interface Employee {
 
 
 const HR = () => {
+  const { getAll, addItem, updateItem, deleteItem } = useUserData();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
