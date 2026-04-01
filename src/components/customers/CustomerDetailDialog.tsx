@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getAll, updateItem } from "@/lib/firebaseDb";
+import { useUserData } from "@/hooks/useUserData";
 import { toast } from "sonner";
 
 interface Customer {

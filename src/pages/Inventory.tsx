@@ -40,6 +40,7 @@ const Inventory = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<Product | null>(null);
   const [formData, setFormData] = useState(emptyForm);
   const queryClient = useQueryClient();
+  const { getAll, addItem, updateItem, deleteItem } = useUserData();
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products"],

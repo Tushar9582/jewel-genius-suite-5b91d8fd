@@ -13,7 +13,7 @@ import {
   PieChart as RePieChart, Pie, Cell, BarChart, Bar, LineChart, Line, Legend,
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
-import { getAll } from "@/lib/firebaseDb";
+import { useUserData } from "@/hooks/useUserData";
 import { useMemo } from "react";
 
 interface Sale {
