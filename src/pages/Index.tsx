@@ -79,9 +79,10 @@ const getGreeting = () => {
 
 const Index = () => {
   const { user } = useAuth();
+  const { getAll } = useUserData();
   const displayName = user?.displayName || user?.email?.split("@")[0] || "User";
 
-  const { data: sales = [], isLoading: sL } = useQuery({ queryKey: ["dash-sales"], queryFn: () => getAll<Sale>("sales") });
+  const { data: sales = [], isLoading: sL } = useQuery({ queryKey: ["dash-sales"], queryFn: () => getAll<Sale>("sales"), enabled: !!user });
   const { data: products = [], isLoading: pL } = useQuery({ queryKey: ["dash-products"], queryFn: () => getAll<Product>("products") });
   const { data: customers = [], isLoading: cL } = useQuery({ queryKey: ["dash-customers"], queryFn: () => getAll<Customer>("customers") });
   const { data: employees = [], isLoading: eL } = useQuery({ queryKey: ["dash-employees"], queryFn: () => getAll<Employee>("employees") });
