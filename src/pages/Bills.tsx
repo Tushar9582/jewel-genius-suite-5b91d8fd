@@ -377,6 +377,49 @@ const Bills = () => {
                     <div className="flex justify-between font-bold text-base pt-1 border-t border-border"><span>Total</span><span className="text-primary">₹{(selectedBill.total || 0).toLocaleString("en-IN")}</span></div>
                   </div>
                 </div>
+                {/* Customer Billing History */}
+                {selectedBill.customer_name && selectedBill.customer_name !== "Walk-in" && (() => {
+                  const customerHistory = completedSales.filter(
+                    (s) => s.customer_name === selectedBill.customer_name && s.id !== selectedBill.id
+                  );
+                  if (customerHistory.length === 0) return null;
+                  return (
+                    <div className="border-t border-border pt-3">
+                      <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
+                        <ShoppingBag className="w-4 h-4 text-primary" />
+                        Customer History — {customerHistory.length} previous bill(s)
+                      </h4>
+                      <div className="max-h-[180px] overflow-y-auto rounded-lg border border-border/50">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">Invoice</TableHead>
+                              <TableHead className="text-xs">Date</TableHead>
+                              <TableHead className="text-xs text-center">Items</TableHead>
+                              <TableHead className="text-xs text-right">Total</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {customerHistory.map((s) => (
+                              <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedBill(s)}>
+                                <TableCell className="text-xs font-mono text-primary">{s.invoice_number}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">
+                                  {s.created_at ? format(new Date(s.created_at), "dd MMM yyyy") : "—"}
+                                </TableCell>
+                                <TableCell className="text-xs text-center">{(Array.isArray(s.items) ? s.items : []).length}</TableCell>
+                                <TableCell className="text-xs text-right font-semibold text-primary">₹{(s.total || 0).toLocaleString("en-IN")}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1.5">
+                        Total spent: ₹{customerHistory.reduce((a, s) => a + (s.total || 0), 0).toLocaleString("en-IN")} across {customerHistory.length} previous orders
+                      </p>
+                    </div>
+                  );
+                })()}
+
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                   <Button variant="outline" size="sm" className="flex-1" onClick={handlePrint}><Printer className="w-4 h-4 mr-1" /> Print</Button>
                   <Button variant="outline" size="sm" className="flex-1 text-green-600 border-green-600/30 hover:bg-green-50" onClick={() => handleWhatsAppShare(selectedBill)}><MessageCircle className="w-4 h-4 mr-1" /> WhatsApp</Button>
