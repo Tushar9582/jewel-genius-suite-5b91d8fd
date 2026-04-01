@@ -83,10 +83,10 @@ const Index = () => {
   const displayName = user?.displayName || user?.email?.split("@")[0] || "User";
 
   const { data: sales = [], isLoading: sL } = useQuery({ queryKey: ["dash-sales"], queryFn: () => getAll<Sale>("sales"), enabled: !!user });
-  const { data: products = [], isLoading: pL } = useQuery({ queryKey: ["dash-products"], queryFn: () => getAll<Product>("products") });
-  const { data: customers = [], isLoading: cL } = useQuery({ queryKey: ["dash-customers"], queryFn: () => getAll<Customer>("customers") });
-  const { data: employees = [], isLoading: eL } = useQuery({ queryKey: ["dash-employees"], queryFn: () => getAll<Employee>("employees") });
-  const { data: investments = [], isLoading: iL } = useQuery({ queryKey: ["dash-investments"], queryFn: () => getAll<Investment>("investments") });
+  const { data: products = [], isLoading: pL } = useQuery({ queryKey: ["dash-products"], queryFn: () => getAll<Product>("products"), enabled: !!user });
+  const { data: customers = [], isLoading: cL } = useQuery({ queryKey: ["dash-customers"], queryFn: () => getAll<Customer>("customers"), enabled: !!user });
+  const { data: employees = [], isLoading: eL } = useQuery({ queryKey: ["dash-employees"], queryFn: () => getAll<Employee>("employees"), enabled: !!user });
+  const { data: investments = [], isLoading: iL } = useQuery({ queryKey: ["dash-investments"], queryFn: () => getAll<Investment>("investments"), enabled: !!user });
 
   const isLoading = sL || pL || cL || eL || iL;
 
