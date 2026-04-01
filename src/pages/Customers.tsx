@@ -50,6 +50,7 @@ function isTodayBirthday(dob: string | null): boolean {
 }
 
 const Customers = () => {
+  const { getAll, addItem, deleteItem } = useUserData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", address: "", city: "" });

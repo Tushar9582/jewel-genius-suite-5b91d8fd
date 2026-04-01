@@ -66,6 +66,7 @@ function isTodayBirthday(dob: string | null | undefined): boolean {
 }
 
 const POS = () => {
+  const { getAll, addItem, updateItem } = useUserData();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");

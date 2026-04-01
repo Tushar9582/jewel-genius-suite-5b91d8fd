@@ -23,6 +23,7 @@ interface Campaign {
 }
 
 const Marketing = () => {
+  const { getAll, addItem, updateItem } = useUserData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", type: "Email", status: "Draft" });
   const queryClient = useQueryClient();

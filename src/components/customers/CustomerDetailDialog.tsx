@@ -70,6 +70,7 @@ interface Props {
 }
 
 export function CustomerDetailDialog({ customer, open, onOpenChange }: Props) {
+  const { getAll, updateItem } = useUserData();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ name: "", phone: "", email: "", city: "", address: "", date_of_birth: "" });
   const queryClient = useQueryClient();

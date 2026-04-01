@@ -26,6 +26,7 @@ interface Investment {
 
 
 const Investments = () => {
+  const { getAll, addItem } = useUserData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ customer_name: "", metal_type: "Gold", quantity: "", invested_amount: "" });
   const queryClient = useQueryClient();

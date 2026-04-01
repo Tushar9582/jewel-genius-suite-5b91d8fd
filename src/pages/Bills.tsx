@@ -58,6 +58,7 @@ function isImitationSale(sale: Sale): boolean {
 }
 
 const Bills = () => {
+  const { getAll, updateItem, deleteItem } = useUserData();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBill, setSelectedBill] = useState<Sale | null>(null);
   const [editingBill, setEditingBill] = useState<Sale | null>(null);
