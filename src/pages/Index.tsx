@@ -16,9 +16,9 @@ import {
   UserCog,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { getAll } from "@/lib/firebaseDb";
 import { useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserData } from "@/hooks/useUserData";
 import { Loader2 } from "lucide-react";
 
 interface Sale {
