@@ -20,7 +20,7 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getAll, addItem, deleteItem } from "@/lib/firebaseDb";
+import { useUserData } from "@/hooks/useUserData";
 import { CustomerDetailDialog } from "@/components/customers/CustomerDetailDialog";
 
 interface Customer {
@@ -50,6 +50,7 @@ function isTodayBirthday(dob: string | null): boolean {
 }
 
 const Customers = () => {
+  const { getAll, addItem, deleteItem } = useUserData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", address: "", city: "" });

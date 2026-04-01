@@ -15,7 +15,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GoldRateCalculator, type ProductForCalc, type CalcResult } from "@/components/pos/GoldRateCalculator";
 import { toast } from "sonner";
-import { getAll, addItem, updateItem } from "@/lib/firebaseDb";
+import { useUserData } from "@/hooks/useUserData";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 
@@ -66,6 +66,7 @@ function isTodayBirthday(dob: string | null | undefined): boolean {
 }
 
 const POS = () => {
+  const { getAll, addItem, updateItem } = useUserData();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");

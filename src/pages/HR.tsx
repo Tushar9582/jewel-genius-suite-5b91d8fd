@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getAll, addItem, updateItem, deleteItem } from "@/lib/firebaseDb";
+import { useUserData } from "@/hooks/useUserData";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
@@ -65,6 +65,7 @@ interface Employee {
 
 
 const HR = () => {
+  const { getAll, addItem, updateItem, deleteItem } = useUserData();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);

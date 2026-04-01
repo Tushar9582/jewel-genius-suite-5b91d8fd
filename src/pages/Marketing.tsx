@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getAll, addItem, updateItem } from "@/lib/firebaseDb";
+import { useUserData } from "@/hooks/useUserData";
 
 interface Campaign {
   id: string;
@@ -23,6 +23,7 @@ interface Campaign {
 }
 
 const Marketing = () => {
+  const { getAll, addItem, updateItem } = useUserData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", type: "Email", status: "Draft" });
   const queryClient = useQueryClient();

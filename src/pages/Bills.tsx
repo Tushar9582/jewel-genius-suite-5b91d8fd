@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Receipt, Search, Eye, IndianRupee, ShoppingBag, Calendar, Printer, Download, MessageCircle, Gem, Sparkles, Edit2, Trash2, Save, X, Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getAll, updateItem, deleteItem } from "@/lib/firebaseDb";
+import { useUserData } from "@/hooks/useUserData";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -58,6 +58,7 @@ function isImitationSale(sale: Sale): boolean {
 }
 
 const Bills = () => {
+  const { getAll, updateItem, deleteItem } = useUserData();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBill, setSelectedBill] = useState<Sale | null>(null);
   const [editingBill, setEditingBill] = useState<Sale | null>(null);

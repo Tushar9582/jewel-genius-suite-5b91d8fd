@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getAll, addItem } from "@/lib/firebaseDb";
+import { useUserData } from "@/hooks/useUserData";
 import { MetalPriceCard } from "@/components/dashboard/MetalPriceCard";
 
 interface Investment {
@@ -26,6 +26,7 @@ interface Investment {
 
 
 const Investments = () => {
+  const { getAll, addItem } = useUserData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ customer_name: "", metal_type: "Gold", quantity: "", invested_amount: "" });
   const queryClient = useQueryClient();

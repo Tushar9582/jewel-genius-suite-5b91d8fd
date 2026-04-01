@@ -13,7 +13,7 @@ import {
   PieChart as RePieChart, Pie, Cell, BarChart, Bar, LineChart, Line, Legend,
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
-import { getAll } from "@/lib/firebaseDb";
+import { useUserData } from "@/hooks/useUserData";
 import { useMemo } from "react";
 
 interface Sale {
@@ -103,6 +103,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const Analytics = () => {
+  const { getAll } = useUserData();
   const { data: sales = [], isLoading: sL } = useQuery({ queryKey: ["analytics-sales"], queryFn: () => getAll<Sale>("sales") });
   const { data: products = [], isLoading: pL } = useQuery({ queryKey: ["analytics-products"], queryFn: () => getAll<Product>("products") });
   const { data: customers = [], isLoading: cL } = useQuery({ queryKey: ["analytics-customers"], queryFn: () => getAll<Customer>("customers") });

@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getAll, addItem, updateItem, deleteItem } from "@/lib/firebaseDb";
+import { useUserData } from "@/hooks/useUserData";
 import { ProductBarcodeDialog, generateBarcode } from "@/components/inventory/ProductBarcode";
 
 interface Product {
@@ -40,6 +40,7 @@ const Inventory = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<Product | null>(null);
   const [formData, setFormData] = useState(emptyForm);
   const queryClient = useQueryClient();
+  const { getAll, addItem, updateItem, deleteItem } = useUserData();
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products"],
