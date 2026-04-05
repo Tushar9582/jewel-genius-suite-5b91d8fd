@@ -14,6 +14,8 @@ import {
   Package,
   Gem,
   UserCog,
+  Sparkles,
+  Receipt,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
@@ -30,6 +32,7 @@ interface Sale {
   invoice_number: string;
   items: any;
   status: string;
+  is_imitation_bill?: boolean;
 }
 interface Product {
   id: string;
@@ -61,6 +64,15 @@ interface Investment {
   current_value: number;
   status: string;
   metal_type: string;
+}
+
+function isImitationSale(sale: Sale): boolean {
+  if (sale.is_imitation_bill) return true;
+  const items = Array.isArray(sale.items) ? sale.items : [];
+  return items.some((item: any) => {
+    const name = (item.name || "").toLowerCase();
+    return name.includes("imitation") || name.includes("artificial") || name.includes("fashion");
+  });
 }
 
 const fmt = (v: number) => {
@@ -98,23 +110,28 @@ const Index = () => {
     const inventoryValue = products.reduce((a, p) => a + (Number(p.unit_price || 0) * Number(p.stock || 0)), 0);
     const totalStock = products.reduce((a, p) => a + Number(p.stock || 0), 0);
     const activeCustomers = customers.filter(c => Number(c.total_purchases || 0) > 0).length;
-    const activeEmployees = employees.filter(e => e.is_active !== false).length;
-    const investmentValue = investments.reduce((a, inv) => a + Number(inv.current_value || 0), 0);
-    const totalWeight = products.reduce((a, p) => a + (Number(p.weight || 0) * Number(p.stock || 0)), 0);
+
+    // Imitation metrics
+    const imitationSales = sales.filter(s => isImitationSale(s));
+    const imitationRevenue = imitationSales.reduce((a, s) => a + Number(s.total || 0), 0);
+    const todayImitationSales = imitationSales.filter(s => new Date(s.created_at).toDateString() === today);
+    const todayImitationRevenue = todayImitationSales.reduce((a, s) => a + Number(s.total || 0), 0);
+
+    // Regular (non-imitation) revenue
+    const regularRevenue = totalRevenue - imitationRevenue;
 
     return [
       { title: "Today's Revenue", value: fmt(todayRevenue), change: { value: `${todaySales.length} sales`, positive: todayRevenue > 0 }, description: "today", icon: IndianRupee, accentColor: "gold" as const },
-      { title: "Total Revenue", value: fmt(totalRevenue), change: { value: `${sales.length} orders`, positive: true }, description: "all time", icon: ShoppingBag, accentColor: "emerald" as const },
+      { title: "Gold Revenue", value: fmt(regularRevenue), change: { value: `${sales.length - imitationSales.length} orders`, positive: true }, description: "excl. imitation", icon: Gem, accentColor: "gold" as const },
       { title: "Customers", value: customers.length.toString(), change: { value: `${activeCustomers} active`, positive: true }, description: "buyers", icon: Users, accentColor: "gold" as const },
-      { title: "Inventory Value", value: fmt(inventoryValue), change: { value: `${totalStock} items • ${totalWeight.toFixed(0)}g`, positive: true }, description: "in stock", icon: Package, accentColor: "silver" as const },
-      { title: "Employees", value: `${activeEmployees}/${employees.length}`, change: { value: "active", positive: true }, description: "staff", icon: UserCog, accentColor: "emerald" as const },
-      { title: "Investments", value: fmt(investmentValue), change: { value: `${investments.filter(i => i.status === "Active").length} active`, positive: true }, description: "portfolio", icon: Gem, accentColor: "gold" as const },
+      { title: "Inventory Value", value: fmt(inventoryValue), change: { value: `${totalStock} items`, positive: true }, description: "in stock", icon: Package, accentColor: "silver" as const },
+      { title: "Imitation Revenue", value: fmt(imitationRevenue), change: { value: `${imitationSales.length} bills`, positive: imitationRevenue > 0 }, description: "all time", icon: Sparkles, accentColor: "emerald" as const },
+      { title: "Today Imitation", value: fmt(todayImitationRevenue), change: { value: `${todayImitationSales.length} sales`, positive: todayImitationRevenue > 0 }, description: "today", icon: Receipt, accentColor: "emerald" as const },
     ];
   }, [sales, products, customers, employees, investments]);
 
   return (
     <DashboardLayout>
-      {/* Welcome Section */}
       <div className="mb-6 sm:mb-8 animate-fade-in pt-2 sm:pt-0">
         <h1 className="text-2xl sm:text-3xl font-display font-bold">
           {getGreeting()}, <span className="text-gradient-gold">{displayName}</span>
@@ -130,14 +147,12 @@ const Index = () => {
         </div>
       ) : (
         <>
-          {/* Stats Grid - 6 cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
             {stats.map((stat, index) => (
               <StatCard key={stat.title} {...stat} delay={index * 80} />
             ))}
           </div>
 
-          {/* Main Content Grid */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 mb-6">
             <div className="xl:col-span-2">
               <SalesChart sales={sales} />
@@ -145,13 +160,11 @@ const Index = () => {
             <MetalPriceCard />
           </div>
 
-          {/* Middle Section - Business Health + Customer Insights */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 mb-6">
             <BusinessHealth sales={sales} products={products} customers={customers} investments={investments} />
             <CustomerInsights customers={customers} sales={sales} />
           </div>
 
-          {/* Lower Section */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
             <div className="xl:col-span-2">
               <RecentTransactions sales={sales} />

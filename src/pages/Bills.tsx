@@ -49,7 +49,8 @@ interface Sale {
   created_at: string;
 }
 
-function isImitationSale(sale: Sale): boolean {
+function isImitationSale(sale: Sale & { is_imitation_bill?: boolean }): boolean {
+  if (sale.is_imitation_bill) return true;
   const items = Array.isArray(sale.items) ? sale.items : [];
   return items.some((item) => {
     const name = (item.name || "").toLowerCase();

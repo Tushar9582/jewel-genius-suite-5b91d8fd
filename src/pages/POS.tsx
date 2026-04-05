@@ -9,8 +9,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   ShoppingCart, Barcode, Search, Plus, Minus, Trash2,
-  CreditCard, Banknote, Smartphone, Loader2, Calculator, Gem, Zap, Gift, Package, UserPlus, Cake, Phone, User, MapPin, Mail, Calendar,
+  CreditCard, Banknote, Smartphone, Loader2, Calculator, Gem, Zap, Gift, Package, UserPlus, Cake, Phone, User, MapPin, Mail, Calendar, Sparkles, Percent, IndianRupee,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GoldRateCalculator, type ProductForCalc, type CalcResult } from "@/components/pos/GoldRateCalculator";
@@ -43,6 +46,7 @@ interface CartItem {
   sku: string;
   calculatedPrice?: boolean;
   purity?: string;
+  metal_type?: string;
 }
 
 interface CustomerRecord {
@@ -55,8 +59,14 @@ interface CustomerRecord {
   total_purchases: number;
 }
 
-const BIRTHDAY_DISCOUNT_PERCENT = 5;
+const DEFAULT_BIRTHDAY_DISCOUNT = 5;
+
 const isGoldProduct = (p: Product) => p.metal_type?.toLowerCase().includes("gold");
+const isImitationProduct = (p: Product) => {
+  const name = (p.name || "").toLowerCase();
+  const metal = (p.metal_type || "").toLowerCase();
+  return name.includes("imitation") || name.includes("artificial") || name.includes("fashion") || metal.includes("imitation");
+};
 
 function isTodayBirthday(dob: string | null | undefined): boolean {
   if (!dob) return false;
@@ -75,12 +85,16 @@ const POS = () => {
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
   const [birthdayDiscountApplied, setBirthdayDiscountApplied] = useState(false);
+  const [birthdayDiscountPercent, setBirthdayDiscountPercent] = useState(DEFAULT_BIRTHDAY_DISCOUNT);
   const [customerMode, setCustomerMode] = useState<"search" | "new" | "walkin">("search");
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerDob, setNewCustomerDob] = useState("");
   const [newCustomerAddress, setNewCustomerAddress] = useState("");
+  // Imitation discount
+  const [imitationDiscountType, setImitationDiscountType] = useState<"percent" | "flat">("percent");
+  const [imitationDiscountValue, setImitationDiscountValue] = useState(0);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const scanBufferRef = useRef("");
   const scanTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -102,6 +116,7 @@ const POS = () => {
   useEffect(() => {
     if (!selectedCustomer || !isTodayBirthday(selectedCustomer.date_of_birth)) {
       setBirthdayDiscountApplied(false);
+      setBirthdayDiscountPercent(DEFAULT_BIRTHDAY_DISCOUNT);
     }
   }, [selectedCustomer]);
 
@@ -112,7 +127,6 @@ const POS = () => {
       const isScanInput = active === scanInputRef.current;
       const isOtherInput = active instanceof HTMLInputElement && !isScanInput;
       if (isOtherInput) return;
-
       if (e.key === "Enter" && scanBufferRef.current.length >= 5) {
         e.preventDefault();
         const scannedCode = scanBufferRef.current.trim();
@@ -120,7 +134,6 @@ const POS = () => {
         handleBarcodeScan(scannedCode);
         return;
       }
-
       if (e.key.length === 1) {
         scanBufferRef.current += e.key;
         if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
@@ -167,17 +180,41 @@ const POS = () => {
     }
   };
 
+  // Check if cart has imitation items
+  const hasImitationItems = cart.some((item) => {
+    const name = (item.name || "").toLowerCase();
+    const metal = (item.metal_type || "").toLowerCase();
+    return name.includes("imitation") || name.includes("artificial") || name.includes("fashion") || metal.includes("imitation");
+  });
+
+  const isFullyImitation = cart.length > 0 && cart.every((item) => {
+    const name = (item.name || "").toLowerCase();
+    const metal = (item.metal_type || "").toLowerCase();
+    return name.includes("imitation") || name.includes("artificial") || name.includes("fashion") || metal.includes("imitation");
+  });
+
   const subtotal = cart.reduce((acc, item) => acc + item.unit_price * item.qty, 0);
   const tax = Math.round(subtotal * 0.03);
   const isBirthday = selectedCustomer ? isTodayBirthday(selectedCustomer.date_of_birth) : false;
-  const birthdayDiscount = birthdayDiscountApplied ? Math.round(subtotal * (BIRTHDAY_DISCOUNT_PERCENT / 100)) : 0;
-  const total = subtotal + tax - birthdayDiscount;
+  const birthdayDiscount = birthdayDiscountApplied ? Math.round(subtotal * (birthdayDiscountPercent / 100)) : 0;
+
+  // Imitation discount calculation
+  let imitationDiscount = 0;
+  if (hasImitationItems && imitationDiscountValue > 0) {
+    if (imitationDiscountType === "percent") {
+      imitationDiscount = Math.round(subtotal * (imitationDiscountValue / 100));
+    } else {
+      imitationDiscount = Math.min(imitationDiscountValue, subtotal);
+    }
+  }
+
+  const totalDiscount = birthdayDiscount + imitationDiscount;
+  const total = subtotal + tax - totalDiscount;
 
   const completeSaleMutation = useMutation({
     mutationFn: async () => {
       let finalCustomer = selectedCustomer;
 
-      // Create new customer if in "new" mode
       if (customerMode === "new" && newCustomerName.trim() && newCustomerPhone.trim()) {
         const newId = await addItem("customers", {
           name: newCustomerName.trim(),
@@ -197,13 +234,24 @@ const POS = () => {
         items: cart.map((item) => ({
           product_id: item.id, name: item.name, qty: item.qty, price: item.unit_price,
           calculated: item.calculatedPrice || false, purity: item.purity || null,
+          metal_type: item.metal_type || null,
         })),
-        subtotal, tax, discount: birthdayDiscount, total,
+        subtotal, tax, discount: totalDiscount, total,
         payment_method: paymentMethod,
         status: "Completed",
         customer_id: finalCustomer?.id || null,
         customer_name: finalCustomer?.name || null,
         customer_phone: finalCustomer?.phone || null,
+        is_imitation_bill: isFullyImitation,
+        birthday_offer_applied: birthdayDiscountApplied,
+        discount_type: imitationDiscount > 0 ? imitationDiscountType : (birthdayDiscountApplied ? "percent" : null),
+        discount_detail: JSON.stringify({
+          birthday: birthdayDiscount,
+          imitation: imitationDiscount,
+          birthday_percent: birthdayDiscountApplied ? birthdayDiscountPercent : 0,
+          imitation_type: imitationDiscountType,
+          imitation_value: imitationDiscountValue,
+        }),
       });
 
       for (const item of cart) {
@@ -215,6 +263,7 @@ const POS = () => {
       if (finalCustomer) {
         await updateItem("customers", finalCustomer.id, {
           total_purchases: (finalCustomer.total_purchases || 0) + total,
+          ...(birthdayDiscountApplied ? { birthday_offer_sent: true, last_offer_date: new Date().toISOString() } : {}),
         });
       }
 
@@ -229,6 +278,9 @@ const POS = () => {
       setCart([]);
       setSelectedCustomer(null);
       setBirthdayDiscountApplied(false);
+      setBirthdayDiscountPercent(DEFAULT_BIRTHDAY_DISCOUNT);
+      setImitationDiscountType("percent");
+      setImitationDiscountValue(0);
       setShowCheckout(false);
       resetNewCustomerForm();
     },
@@ -251,7 +303,7 @@ const POS = () => {
       if (existing.qty >= product.stock) { toast.error("Not enough stock"); return; }
       setCart(cart.map((item) => (item.id === product.id ? { ...item, qty: item.qty + 1 } : item)));
     } else {
-      setCart([...cart, { id: product.id, name: product.name, weight: product.weight, unit_price: product.unit_price, stock: product.stock, qty: 1, sku: product.sku }]);
+      setCart([...cart, { id: product.id, name: product.name, weight: product.weight, unit_price: product.unit_price, stock: product.stock, qty: 1, sku: product.sku, metal_type: product.metal_type }]);
     }
     toast.success(`${product.name} added to cart`);
   };
@@ -264,7 +316,7 @@ const POS = () => {
         if (existing.qty >= product.stock) { toast.error("Not enough stock"); return; }
         setCart(cart.map((item) => item.id === product.id ? { ...item, unit_price: result.calculatedPrice, qty: item.qty + 1, calculatedPrice: true, purity: result.purity } : item));
       } else {
-        setCart([...cart, { id: product.id, name: product.name, weight: result.weight, unit_price: result.calculatedPrice, stock: product.stock, qty: 1, sku: product.sku, calculatedPrice: true, purity: result.purity }]);
+        setCart([...cart, { id: product.id, name: product.name, weight: result.weight, unit_price: result.calculatedPrice, stock: product.stock, qty: 1, sku: product.sku, calculatedPrice: true, purity: result.purity, metal_type: product.metal_type }]);
       }
     } else {
       setCart([...cart, { id: `calc-${Date.now()}`, name: result.productName, weight: result.weight, unit_price: result.calculatedPrice, stock: 9999, qty: 1, sku: "CUSTOM", calculatedPrice: true, purity: result.purity }]);
@@ -352,7 +404,7 @@ const POS = () => {
                       <TableRow>
                         <TableHead className="text-xs">Product</TableHead>
                         <TableHead className="text-xs">SKU</TableHead>
-                        <TableHead className="text-xs text-center">Weight</TableHead>
+                        <TableHead className="text-xs text-center">Type</TableHead>
                         <TableHead className="text-xs text-center">Stock</TableHead>
                         <TableHead className="text-xs text-right">Price</TableHead>
                         <TableHead className="text-xs text-right">Action</TableHead>
@@ -361,17 +413,24 @@ const POS = () => {
                     <TableBody>
                       {filteredProducts.slice(0, 50).map((product) => {
                         const gold = isGoldProduct(product);
+                        const imitation = isImitationProduct(product);
                         return (
                           <TableRow key={product.id} className="cursor-pointer hover:bg-muted/50" onClick={() => gold ? sendToCalculator(product) : addToCart(product)}>
                             <TableCell className="py-2">
                               <div className="flex items-center gap-2">
                                 {gold && <Gem className="w-3.5 h-3.5 text-primary shrink-0" />}
+                                {imitation && <Sparkles className="w-3.5 h-3.5 text-purple-500 shrink-0" />}
                                 <span className="text-sm font-medium">{product.name}</span>
-                                {gold && <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary">{product.metal_type}</Badge>}
                               </div>
                             </TableCell>
                             <TableCell className="py-2 text-xs font-mono text-muted-foreground">{product.sku}</TableCell>
-                            <TableCell className="py-2 text-xs text-center">{product.weight}g</TableCell>
+                            <TableCell className="py-2 text-xs text-center">
+                              {imitation ? (
+                                <Badge className="bg-purple-500/20 text-purple-600 border-purple-500/30 text-[9px]">Imitation</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary">{product.metal_type}</Badge>
+                              )}
+                            </TableCell>
                             <TableCell className="py-2 text-xs text-center">
                               <Badge variant={product.stock <= 3 ? "destructive" : "secondary"} className="text-[10px]">{product.stock}</Badge>
                             </TableCell>
@@ -400,6 +459,7 @@ const POS = () => {
                 <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 Cart Items
                 <Badge variant="secondary" className="ml-2">{cart.length} items</Badge>
+                {hasImitationItems && <Badge className="bg-purple-500/20 text-purple-600 border-purple-500/30 text-[10px] ml-1"><Sparkles className="w-3 h-3 mr-0.5" />Imitation</Badge>}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -409,31 +469,35 @@ const POS = () => {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {cart.map((item) => (
-                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 rounded-lg bg-muted/30 border border-border/50">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                          {item.calculatedPrice ? <Gem className="w-4 h-4 sm:w-5 sm:h-5 text-primary" /> : <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />}
+                  {cart.map((item) => {
+                    const isImit = (item.name || "").toLowerCase().includes("imitation") || (item.name || "").toLowerCase().includes("artificial") || (item.name || "").toLowerCase().includes("fashion") || (item.metal_type || "").toLowerCase().includes("imitation");
+                    return (
+                      <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 rounded-lg bg-muted/30 border border-border/50">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center shrink-0 ${isImit ? "bg-purple-500/10" : "bg-primary/10"}`}>
+                            {isImit ? <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" /> : item.calculatedPrice ? <Gem className="w-4 h-4 sm:w-5 sm:h-5 text-primary" /> : <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm sm:text-base truncate flex items-center gap-1.5">
+                              {item.name}
+                              {item.calculatedPrice && <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary">{item.purity} Calc</Badge>}
+                              {isImit && <Badge className="bg-purple-500/20 text-purple-600 border-purple-500/30 text-[9px]">Imitation</Badge>}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Weight: {item.weight}g</p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm sm:text-base truncate flex items-center gap-1.5">
-                            {item.name}
-                            {item.calculatedPrice && <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary">{item.purity} Calc</Badge>}
-                          </p>
-                          <p className="text-xs text-muted-foreground">Weight: {item.weight}g</p>
+                        <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => updateQty(item.id, -1)}><Minus className="w-3 h-3" /></Button>
+                            <span className="w-6 sm:w-8 text-center font-medium text-sm">{item.qty}</span>
+                            <Button variant="outline" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => updateQty(item.id, 1)}><Plus className="w-3 h-3" /></Button>
+                          </div>
+                          <p className="font-semibold text-primary text-sm sm:text-base w-20 sm:w-24 text-right">₹{(item.unit_price * item.qty).toLocaleString()}</p>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => removeFromCart(item.id)}><Trash2 className="w-4 h-4" /></Button>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => updateQty(item.id, -1)}><Minus className="w-3 h-3" /></Button>
-                          <span className="w-6 sm:w-8 text-center font-medium text-sm">{item.qty}</span>
-                          <Button variant="outline" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => updateQty(item.id, 1)}><Plus className="w-3 h-3" /></Button>
-                        </div>
-                        <p className="font-semibold text-primary text-sm sm:text-base w-20 sm:w-24 text-right">₹{(item.unit_price * item.qty).toLocaleString()}</p>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => removeFromCart(item.id)}><Trash2 className="w-4 h-4" /></Button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -477,17 +541,54 @@ const POS = () => {
                     </div>
                     <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground" onClick={() => { setSelectedCustomer(null); setBirthdayDiscountApplied(false); }}>Change</Button>
                   </div>
-                  {isBirthday && !birthdayDiscountApplied && cart.length > 0 && (
-                    <Button variant="outline" size="sm" className="w-full mt-2 border-pink-500/30 text-pink-600 hover:bg-pink-500/10 gap-2 text-xs"
-                      onClick={() => { setBirthdayDiscountApplied(true); toast.success("🎂 Birthday 5% discount applied!"); }}>
-                      <Gift className="w-3.5 h-3.5" /> Apply 5% Birthday Discount
-                    </Button>
-                  )}
-                  {birthdayDiscountApplied && (
-                    <div className="flex items-center justify-between text-xs p-2 rounded-md bg-pink-500/10 border border-pink-500/20 mt-2">
-                      <span className="flex items-center gap-1.5 text-pink-600 dark:text-pink-400 font-medium"><Gift className="w-3 h-3" />Birthday Discount (5%)</span>
-                      <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1.5 text-muted-foreground" onClick={() => setBirthdayDiscountApplied(false)}>Remove</Button>
+                  {/* Birthday banner */}
+                  {isBirthday && cart.length > 0 && (
+                    <div className="mt-2 p-2 rounded-md bg-gradient-to-r from-pink-500/10 to-orange-400/10 border border-pink-500/20">
+                      <p className="text-xs font-semibold text-pink-600 dark:text-pink-400 flex items-center gap-1.5 mb-1.5">
+                        🎉 Today is {selectedCustomer.name}'s Birthday!
+                      </p>
+                      {!birthdayDiscountApplied ? (
+                        <div className="flex items-center gap-2">
+                          <Input type="number" min={1} max={50} value={birthdayDiscountPercent} onChange={(e) => setBirthdayDiscountPercent(Number(e.target.value))} className="h-7 w-16 text-xs" />
+                          <span className="text-xs text-muted-foreground">%</span>
+                          <Button variant="outline" size="sm" className="h-7 text-[10px] border-pink-500/30 text-pink-600 hover:bg-pink-500/10 gap-1 ml-auto"
+                            onClick={() => { setBirthdayDiscountApplied(true); toast.success(`🎂 Birthday ${birthdayDiscountPercent}% discount applied!`); }}>
+                            <Gift className="w-3 h-3" /> Apply
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="flex items-center gap-1.5 text-pink-600 dark:text-pink-400 font-medium"><Gift className="w-3 h-3" />Birthday Discount ({birthdayDiscountPercent}%) = -₹{birthdayDiscount.toLocaleString()}</span>
+                          <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1.5 text-muted-foreground" onClick={() => setBirthdayDiscountApplied(false)}>Remove</Button>
+                        </div>
+                      )}
                     </div>
+                  )}
+                </div>
+              )}
+
+              {/* Imitation Discount Section */}
+              {hasImitationItems && cart.length > 0 && (
+                <div className="p-3 rounded-lg border border-purple-500/30 bg-purple-500/5">
+                  <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-1.5 mb-2">
+                    <Sparkles className="w-3.5 h-3.5" /> Imitation Discount
+                  </p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Select value={imitationDiscountType} onValueChange={(v: "percent" | "flat") => { setImitationDiscountType(v); setImitationDiscountValue(0); }}>
+                      <SelectTrigger className="h-7 w-28 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percent">Percentage %</SelectItem>
+                        <SelectItem value="flat">Flat ₹</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center gap-1 flex-1">
+                      {imitationDiscountType === "flat" && <span className="text-xs text-muted-foreground">₹</span>}
+                      <Input type="number" min={0} max={imitationDiscountType === "percent" ? 100 : subtotal} value={imitationDiscountValue} onChange={(e) => setImitationDiscountValue(Number(e.target.value))} className="h-7 text-xs" />
+                      {imitationDiscountType === "percent" && <span className="text-xs text-muted-foreground">%</span>}
+                    </div>
+                  </div>
+                  {imitationDiscount > 0 && (
+                    <p className="text-[11px] text-purple-600 dark:text-purple-400">Discount: -₹{imitationDiscount.toLocaleString()}</p>
                   )}
                 </div>
               )}
@@ -496,7 +597,10 @@ const POS = () => {
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">GST (3%)</span><span>₹{tax.toLocaleString()}</span></div>
                 {birthdayDiscount > 0 && (
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Birthday Discount</span><span className="text-green-500">-₹{birthdayDiscount.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground flex items-center gap-1"><Gift className="w-3 h-3 text-pink-500" />Birthday Discount</span><span className="text-green-500">-₹{birthdayDiscount.toLocaleString()}</span></div>
+                )}
+                {imitationDiscount > 0 && (
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground flex items-center gap-1"><Sparkles className="w-3 h-3 text-purple-500" />Imitation Discount</span><span className="text-green-500">-₹{imitationDiscount.toLocaleString()}</span></div>
                 )}
                 <div className="border-t border-border pt-2 mt-2">
                   <div className="flex justify-between font-bold text-base sm:text-lg"><span>Total</span><span className="text-gradient-gold">₹{total.toLocaleString()}</span></div>
@@ -522,7 +626,7 @@ const POS = () => {
         </div>
       </div>
 
-      {/* Checkout Dialog — Customer Details */}
+      {/* Checkout Dialog */}
       <Dialog open={showCheckout} onOpenChange={(open) => { setShowCheckout(open); if (!open) resetNewCustomerForm(); }}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -650,14 +754,21 @@ const POS = () => {
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setSelectedCustomer(null); setCustomerMode("search"); }}>Change</Button>
                 </div>
                 {isBirthday && !birthdayDiscountApplied && cart.length > 0 && (
-                  <Button variant="outline" size="sm" className="w-full mt-2 border-pink-500/30 text-pink-600 hover:bg-pink-500/10 gap-2 text-xs"
-                    onClick={() => { setBirthdayDiscountApplied(true); toast.success("🎂 Birthday 5% discount applied!"); }}>
-                    <Gift className="w-3.5 h-3.5" /> Apply 5% Birthday Discount
-                  </Button>
+                  <div className="mt-2 p-2 rounded-md bg-gradient-to-r from-pink-500/10 to-orange-400/10 border border-pink-500/20">
+                    <p className="text-xs font-semibold text-pink-600 dark:text-pink-400 mb-1.5">🎉 Birthday Discount</p>
+                    <div className="flex items-center gap-2">
+                      <Input type="number" min={1} max={50} value={birthdayDiscountPercent} onChange={(e) => setBirthdayDiscountPercent(Number(e.target.value))} className="h-7 w-16 text-xs" />
+                      <span className="text-xs text-muted-foreground">%</span>
+                      <Button variant="outline" size="sm" className="h-7 text-[10px] border-pink-500/30 text-pink-600 hover:bg-pink-500/10 gap-1 ml-auto"
+                        onClick={() => { setBirthdayDiscountApplied(true); toast.success(`🎂 Birthday ${birthdayDiscountPercent}% discount applied!`); }}>
+                        <Gift className="w-3 h-3" /> Apply
+                      </Button>
+                    </div>
+                  </div>
                 )}
                 {birthdayDiscountApplied && (
                   <div className="flex items-center justify-between text-xs p-2 rounded-md bg-pink-500/10 border border-pink-500/20 mt-2">
-                    <span className="flex items-center gap-1.5 text-pink-600 dark:text-pink-400 font-medium"><Gift className="w-3 h-3" />Birthday Discount (5%)</span>
+                    <span className="flex items-center gap-1.5 text-pink-600 dark:text-pink-400 font-medium"><Gift className="w-3 h-3" />Birthday Discount ({birthdayDiscountPercent}%) = -₹{birthdayDiscount.toLocaleString()}</span>
                     <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1.5 text-muted-foreground" onClick={() => setBirthdayDiscountApplied(false)}>Remove</Button>
                   </div>
                 )}
@@ -677,7 +788,10 @@ const POS = () => {
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">GST (3%)</span><span>₹{tax.toLocaleString()}</span></div>
                 {birthdayDiscount > 0 && (
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Discount</span><span className="text-green-500">-₹{birthdayDiscount.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground flex items-center gap-1"><Gift className="w-3 h-3 text-pink-500" />Birthday</span><span className="text-green-500">-₹{birthdayDiscount.toLocaleString()}</span></div>
+                )}
+                {imitationDiscount > 0 && (
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground flex items-center gap-1"><Sparkles className="w-3 h-3 text-purple-500" />Discount</span><span className="text-green-500">-₹{imitationDiscount.toLocaleString()}</span></div>
                 )}
               </div>
               <div className="border-t border-border pt-2 mt-1">
@@ -686,6 +800,7 @@ const POS = () => {
               <p className="text-[11px] text-muted-foreground">
                 Payment: {paymentMethod}
                 {selectedCustomer ? ` • ${selectedCustomer.name}` : customerMode === "new" && newCustomerName ? ` • ${newCustomerName}` : " • Walk-in"}
+                {isFullyImitation && " • Imitation Bill"}
               </p>
             </div>
           </div>
