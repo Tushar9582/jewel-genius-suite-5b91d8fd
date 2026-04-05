@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Users, Search, Plus, Filter, Phone, Mail, Crown, Loader2, Cake, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Users, Search, Plus, Filter, Phone, Mail, Crown, Loader2, Cake, Trash2, Gift, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -22,6 +23,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useUserData } from "@/hooks/useUserData";
 import { CustomerDetailDialog } from "@/components/customers/CustomerDetailDialog";
+import { BirthdayOfferModal } from "@/components/customers/BirthdayOfferModal";
 
 interface Customer {
   id: string;
@@ -33,6 +35,8 @@ interface Customer {
   loyalty_points: number;
   total_purchases: number;
   date_of_birth: string | null;
+  birthday_offer_sent?: boolean;
+  last_offer_date?: string | null;
 }
 
 const getTierColor = (totalPurchases: number) => {
@@ -58,6 +62,8 @@ const Customers = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
+  const [offerCustomer, setOfferCustomer] = useState<Customer | null>(null);
+  const [offerModalOpen, setOfferModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: customers = [], isLoading } = useQuery({
@@ -154,17 +160,7 @@ const Customers = () => {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dob}
-                        onSelect={setDob}
-                        disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                        initialFocus
-                        className={cn("p-3 pointer-events-auto")}
-                        captionLayout="dropdown-buttons"
-                        fromYear={1930}
-                        toYear={new Date().getFullYear()}
-                      />
+                      <Calendar mode="single" selected={dob} onSelect={setDob} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus className={cn("p-3 pointer-events-auto")} captionLayout="dropdown-buttons" fromYear={1930} toYear={new Date().getFullYear()} />
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -186,6 +182,7 @@ const Customers = () => {
         <Card variant="stat"><CardContent className="pt-4 sm:pt-6 px-3 sm:px-6"><p className="text-xs sm:text-sm text-muted-foreground truncate">Avg. Lifetime Value</p><p className="text-xl sm:text-2xl font-bold">{formatCurrency(stats.avgLifetimeValue)}</p></CardContent></Card>
       </div>
 
+      {/* Birthday Section */}
       {birthdayCustomers.length > 0 && (
         <Card className="mb-6 border-pink-500/30 bg-gradient-to-r from-pink-500/5 to-orange-400/5">
           <CardHeader className="pb-2">
@@ -193,12 +190,30 @@ const Customers = () => {
               <Cake className="w-4 h-4" /> 🎂 Today's Birthdays
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {birthdayCustomers.map((c) => (
-              <Badge key={c.id} className="bg-gradient-to-r from-pink-500 to-orange-400 text-white gap-1.5 px-3 py-1">
-                <Cake className="w-3 h-3" /> {c.name} — {c.phone}
-              </Badge>
-            ))}
+          <CardContent>
+            <div className="space-y-2">
+              {birthdayCustomers.map((c) => (
+                <div key={c.id} className="flex items-center justify-between p-2 rounded-lg bg-pink-500/5 border border-pink-500/20">
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-gradient-to-r from-pink-500 to-orange-400 text-white gap-1.5 px-3 py-1">
+                      <Cake className="w-3 h-3" /> {c.name}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">{c.phone}</span>
+                    {c.birthday_offer_sent && (
+                      <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-600">Offer Sent ✓</Badge>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1.5 border-pink-500/30 text-pink-600 hover:bg-pink-500/10"
+                    onClick={() => { setOfferCustomer(c); setOfferModalOpen(true); }}
+                  >
+                    <Send className="w-3 h-3" /> Send Offer
+                  </Button>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -251,15 +266,28 @@ const Customers = () => {
                         <p className="font-semibold text-primary text-sm sm:text-base">{formatCurrency(customer.total_purchases || 0)}</p>
                         <p className="text-xs sm:text-sm text-muted-foreground">{customer.loyalty_points || 0} points</p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
-                        onClick={(e) => { e.stopPropagation(); setDeletingCustomer(customer); }}
-                        title="Delete customer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {birthday && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-pink-500 hover:text-pink-600 hover:bg-pink-500/10 h-8 w-8"
+                            onClick={(e) => { e.stopPropagation(); setOfferCustomer(customer); setOfferModalOpen(true); }}
+                            title="Send birthday offer"
+                          >
+                            <Gift className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                          onClick={(e) => { e.stopPropagation(); setDeletingCustomer(customer); }}
+                          title="Delete customer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -270,6 +298,7 @@ const Customers = () => {
       </Card>
 
       <CustomerDetailDialog customer={selectedCustomer} open={detailOpen} onOpenChange={setDetailOpen} />
+      <BirthdayOfferModal customer={offerCustomer} open={offerModalOpen} onOpenChange={setOfferModalOpen} />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deletingCustomer} onOpenChange={() => setDeletingCustomer(null)}>
