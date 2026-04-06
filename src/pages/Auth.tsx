@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Lock, Sparkles, User, IdCard } from 'lucide-react';
+import { Loader2, Mail, Lock, User, IdCard } from 'lucide-react';
+import logoImg from '@/assets/logo.png';
 import { z } from 'zod';
 
 const emailSchema = z.string().trim().email({ message: "Please enter a valid email address" });
