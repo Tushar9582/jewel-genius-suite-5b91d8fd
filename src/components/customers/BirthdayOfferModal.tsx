@@ -143,7 +143,15 @@ ${STORE_NAME}`;
       if (channels.whatsapp) {
         const phone = customer.phone?.replace(/\D/g, "");
         const formatted = phone.startsWith("91") ? phone : "91" + phone;
-        window.open(`https://wa.me/${formatted}?text=${encodeURIComponent(whatsappMessage)}`, "_blank");
+        const waUrl = `https://wa.me/${formatted}?text=${encodeURIComponent(whatsappMessage)}`;
+        // Use anchor click to bypass iframe restrictions
+        const a = document.createElement("a");
+        a.href = waUrl;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
         results.push("WhatsApp");
       }
 
