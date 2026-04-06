@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import logoImg from '@/assets/logo.png';
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -68,14 +67,16 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <img src={logoImg} alt="Rajlakshmi Jewel" className={cn("shrink-0 object-contain", collapsed && !mobile ? "h-9 w-9" : "h-10 w-10")} />
+          <div className="w-10 h-10 rounded-xl bg-gradient-gold flex items-center justify-center shadow-gold shrink-0">
+            <Gem className="w-5 h-5 text-primary-foreground" />
+          </div>
           {(!collapsed || mobile) && (
             <div className="animate-fade-in">
               <h1 className="font-display text-lg font-bold text-gradient-gold">
-                Rajlakshmi
+                Jellowey
               </h1>
               <p className="text-xs text-muted-foreground -mt-0.5">
-                Jewel ERP
+                Jewellery ERP
               </p>
             </div>
           )}
