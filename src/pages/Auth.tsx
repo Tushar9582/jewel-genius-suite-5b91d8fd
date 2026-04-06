@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Lock, Sparkles, User, IdCard } from 'lucide-react';
+import { Loader2, Mail, Lock, User, IdCard } from 'lucide-react';
+import logoImg from '@/assets/logo.png';
 import { z } from 'zod';
 
 const emailSchema = z.string().trim().email({ message: "Please enter a valid email address" });
@@ -152,8 +153,8 @@ export default function Auth() {
 
       <Card className="w-full max-w-md relative z-10 border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl">
         <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-gradient-gold flex items-center justify-center mb-2"><Sparkles className="w-6 h-6 text-primary-foreground" /></div>
-          <CardTitle className="text-2xl font-bold">Welcome</CardTitle>
+          <img src={logoImg} alt="Rajlakshmi Jewel" className="mx-auto h-20 w-auto object-contain mb-2" />
+          <CardTitle className="text-2xl font-bold font-display">Welcome</CardTitle>
           <CardDescription>Sign in to access your dashboard</CardDescription>
         </CardHeader>
         <CardContent>
