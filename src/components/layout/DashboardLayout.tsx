@@ -17,7 +17,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content area - responsive padding for sidebar */}
       <div className="lg:pl-64 transition-all duration-300 relative">
         <Header />
-        <main className="p-3 pt-16 sm:p-6 sm:pt-6 max-w-[1800px] mx-auto">{children}</main>
+        <main className="p-3 sm:p-6 max-w-[1800px] mx-auto">{children}</main>
       </div>
       
       {/* Ambient glow effects - hidden on mobile for performance */}
