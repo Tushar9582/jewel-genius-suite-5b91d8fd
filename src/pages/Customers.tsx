@@ -86,9 +86,8 @@ const Customers = () => {
   });
 
   const deleteCustomerMutation = useMutation({
-    mutationFn: async () => {
-      if (!deletingCustomer) return;
-      await deleteItem("customers", deletingCustomer.id);
+    mutationFn: async (customerId: string) => {
+      await deleteItem("customers", customerId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
