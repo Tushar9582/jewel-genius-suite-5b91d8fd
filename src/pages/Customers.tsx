@@ -313,7 +313,10 @@ const Customers = () => {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={deleteCustomerMutation.isPending}
-              onClick={() => deleteCustomerMutation.mutate()}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deletingCustomer) deleteCustomerMutation.mutate(deletingCustomer.id);
+              }}
             >
               {deleteCustomerMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />} Delete
             </AlertDialogAction>

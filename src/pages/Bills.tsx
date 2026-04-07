@@ -486,7 +486,10 @@ const Bills = () => {
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 disabled={deleteBillMutation.isPending}
-                onClick={() => deleteBillMutation.mutate()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (deletingBill) deleteBillMutation.mutate(deletingBill.id);
+                }}
               >
                 {deleteBillMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />} Delete
               </AlertDialogAction>
