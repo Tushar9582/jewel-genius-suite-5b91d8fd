@@ -157,9 +157,8 @@ const Bills = () => {
   });
 
   const deleteBillMutation = useMutation({
-    mutationFn: async () => {
-      if (!deletingBill) return;
-      await deleteItem("sales", deletingBill.id);
+    mutationFn: async (billId: string) => {
+      await deleteItem("sales", billId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bills"] });
@@ -213,16 +212,16 @@ const Bills = () => {
       );
     }
     return (
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto -mx-4 sm:mx-0">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Invoice #</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Items</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-              <TableHead>Payment</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead className="whitespace-nowrap">Invoice #</TableHead>
+              <TableHead className="whitespace-nowrap">Customer</TableHead>
+              <TableHead className="hidden sm:table-cell">Items</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Total</TableHead>
+              <TableHead className="hidden md:table-cell">Payment</TableHead>
+              <TableHead className="hidden lg:table-cell">Date</TableHead>
               <TableHead className="text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -231,21 +230,21 @@ const Bills = () => {
               const items = Array.isArray(sale.items) ? sale.items : [];
               return (
                 <TableRow key={sale.id}>
-                  <TableCell className="font-mono font-medium text-primary">{sale.invoice_number}</TableCell>
-                  <TableCell>{sale.customer_name || "Walk-in"}</TableCell>
-                  <TableCell>{items.length} item(s)</TableCell>
-                  <TableCell className="text-right font-semibold">₹{(sale.total || 0).toLocaleString("en-IN")}</TableCell>
-                  <TableCell><Badge variant="outline" className="text-xs">{sale.payment_method}</Badge></TableCell>
-                  <TableCell className="text-muted-foreground text-xs">
+                  <TableCell className="font-mono font-medium text-primary text-xs sm:text-sm">{sale.invoice_number}</TableCell>
+                  <TableCell className="text-xs sm:text-sm">{sale.customer_name || "Walk-in"}</TableCell>
+                  <TableCell className="hidden sm:table-cell text-xs sm:text-sm">{items.length} item(s)</TableCell>
+                  <TableCell className="text-right font-semibold text-xs sm:text-sm">₹{(sale.total || 0).toLocaleString("en-IN")}</TableCell>
+                  <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs">{sale.payment_method}</Badge></TableCell>
+                  <TableCell className="hidden lg:table-cell text-muted-foreground text-xs">
                     {sale.created_at ? format(new Date(sale.created_at), "dd MMM yyyy, hh:mm a") : "—"}
                   </TableCell>
                   <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => setSelectedBill(sale)} title="View"><Eye className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => startEditing(sale)} title="Edit" className="text-blue-600 hover:text-blue-700"><Edit2 className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeletingBill(sale)} title="Delete" className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleWhatsAppShare(sale)} title="WhatsApp" className="text-green-600 hover:text-green-700"><MessageCircle className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleExport(sale)} title="Export"><Download className="w-4 h-4" /></Button>
+                    <div className="flex items-center justify-center gap-0.5">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => setSelectedBill(sale)} title="View"><Eye className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600 hover:text-blue-700" onClick={() => startEditing(sale)} title="Edit"><Edit2 className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive" onClick={() => setDeletingBill(sale)} title="Delete"><Trash2 className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 hidden sm:flex text-green-600 hover:text-green-700" onClick={() => handleWhatsAppShare(sale)} title="WhatsApp"><MessageCircle className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 hidden sm:flex" onClick={() => handleExport(sale)} title="Export"><Download className="w-3.5 h-3.5" /></Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -487,7 +486,10 @@ const Bills = () => {
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 disabled={deleteBillMutation.isPending}
-                onClick={() => deleteBillMutation.mutate()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (deletingBill) deleteBillMutation.mutate(deletingBill.id);
+                }}
               >
                 {deleteBillMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />} Delete
               </AlertDialogAction>

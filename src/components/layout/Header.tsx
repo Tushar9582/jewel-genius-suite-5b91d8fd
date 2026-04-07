@@ -28,7 +28,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 h-14 sm:h-16 bg-background/80 backdrop-blur-xl border-b border-border flex items-center justify-between px-4 sm:px-6">
+    <header className="sticky top-0 z-30 h-14 sm:h-16 bg-background/80 backdrop-blur-xl border-b border-border flex items-center justify-between pl-14 pr-4 sm:px-6 lg:pl-6">
       {/* Left Section - Store info (hidden on mobile, shown on tablet+) */}
       <div className="hidden sm:flex items-center gap-4">
         <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-secondary/50 text-xs sm:text-sm">
