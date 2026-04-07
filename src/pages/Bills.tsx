@@ -157,9 +157,8 @@ const Bills = () => {
   });
 
   const deleteBillMutation = useMutation({
-    mutationFn: async () => {
-      if (!deletingBill) return;
-      await deleteItem("sales", deletingBill.id);
+    mutationFn: async (billId: string) => {
+      await deleteItem("sales", billId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bills"] });
