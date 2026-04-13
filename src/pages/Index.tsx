@@ -103,6 +103,8 @@ const Index = () => {
   const { data: employees = [], isLoading: eL } = useQuery({ queryKey: ["dash-employees"], queryFn: () => getAll<Employee>("employees"), enabled: !!user });
   const { data: investments = [], isLoading: iL } = useQuery({ queryKey: ["dash-investments"], queryFn: () => getAll<Investment>("investments"), enabled: !!user });
 
+  const isLoading = sL || pL || cL || eL || iL;
+
   // Auto-generate birthday & low stock notifications once per session
   useEffect(() => {
     if (birthdayCheckedRef.current || isLoading || !customers.length) return;
@@ -146,8 +148,6 @@ const Index = () => {
       }
     });
   }, [isLoading, customers, products, createNotification]);
-
-  const isLoading = sL || pL || cL || eL || iL;
 
   const stats = useMemo(() => {
     const today = new Date().toDateString();
