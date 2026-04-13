@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { useUserData } from "@/hooks/useUserData";
 import { CustomerDetailDialog } from "@/components/customers/CustomerDetailDialog";
 import { BirthdayOfferModal } from "@/components/customers/BirthdayOfferModal";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface Customer {
   id: string;
