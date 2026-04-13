@@ -78,6 +78,7 @@ function isTodayBirthday(dob: string | null | undefined): boolean {
 
 const POS = () => {
   const { getAll, addItem, updateItem } = useUserData();
+  const { createNotification } = useNotifications();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
@@ -276,6 +277,13 @@ const POS = () => {
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       toast.success(`Sale completed! Invoice: ${invoiceNumber}`);
+      createNotification({
+        title: total >= 50000 ? "🔥 High Value Sale!" : "New Sale Completed",
+        message: `₹${total.toLocaleString("en-IN")} sale completed. Invoice: ${invoiceNumber}`,
+        type: "sales",
+        priority: total >= 50000 ? "high" : "medium",
+        action_url: "/bills",
+      });
       setCart([]);
       setSelectedCustomer(null);
       setBirthdayDiscountApplied(false);
