@@ -18,9 +18,10 @@ import {
   Receipt,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserData } from "@/hooks/useUserData";
+import { useNotifications } from "@/hooks/useNotifications";
 import { Loader2 } from "lucide-react";
 
 interface Sale {
@@ -92,6 +93,8 @@ const getGreeting = () => {
 const Index = () => {
   const { user } = useAuth();
   const { getAll } = useUserData();
+  const { createNotification } = useNotifications();
+  const birthdayCheckedRef = useRef(false);
   const displayName = user?.displayName || user?.email?.split("@")[0] || "User";
 
   const { data: sales = [], isLoading: sL } = useQuery({ queryKey: ["dash-sales"], queryFn: () => getAll<Sale>("sales"), enabled: !!user });
