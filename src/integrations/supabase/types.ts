@@ -264,6 +264,45 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          action_url: string | null
+          created_at: string
+          icon: string | null
+          id: string
+          is_read: boolean
+          message: string
+          priority: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_read?: boolean
+          message: string
+          priority?: string
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_read?: boolean
+          message?: string
+          priority?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string

@@ -18,9 +18,10 @@ import {
   Receipt,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserData } from "@/hooks/useUserData";
+import { useNotifications } from "@/hooks/useNotifications";
 import { Loader2 } from "lucide-react";
 
 interface Sale {
@@ -92,6 +93,8 @@ const getGreeting = () => {
 const Index = () => {
   const { user } = useAuth();
   const { getAll } = useUserData();
+  const { createNotification } = useNotifications();
+  const birthdayCheckedRef = useRef(false);
   const displayName = user?.displayName || user?.email?.split("@")[0] || "User";
 
   const { data: sales = [], isLoading: sL } = useQuery({ queryKey: ["dash-sales"], queryFn: () => getAll<Sale>("sales"), enabled: !!user });
@@ -101,6 +104,50 @@ const Index = () => {
   const { data: investments = [], isLoading: iL } = useQuery({ queryKey: ["dash-investments"], queryFn: () => getAll<Investment>("investments"), enabled: !!user });
 
   const isLoading = sL || pL || cL || eL || iL;
+
+  // Auto-generate birthday & low stock notifications once per session
+  useEffect(() => {
+    if (birthdayCheckedRef.current || isLoading || !customers.length) return;
+    birthdayCheckedRef.current = true;
+    const today = new Date();
+    const mm = today.getMonth();
+    const dd = today.getDate();
+
+    customers.forEach((c: any) => {
+      if (c.date_of_birth) {
+        const dob = new Date(c.date_of_birth);
+        if (dob.getMonth() === mm && dob.getDate() === dd) {
+          createNotification({
+            title: "🎂 Birthday Today!",
+            message: `${c.name}'s birthday is today. Send them an offer!`,
+            type: "birthday",
+            priority: "high",
+            action_url: "/customers",
+          });
+        }
+      }
+    });
+
+    products.forEach((p: any) => {
+      if (Number(p.stock) <= 0) {
+        createNotification({
+          title: "🚫 Out of Stock",
+          message: `${p.name} is out of stock. Reorder immediately.`,
+          type: "inventory",
+          priority: "high",
+          action_url: "/inventory",
+        });
+      } else if (Number(p.stock) <= 5) {
+        createNotification({
+          title: "⚠️ Low Stock Alert",
+          message: `${p.name} has only ${p.stock} units remaining.`,
+          type: "inventory",
+          priority: "high",
+          action_url: "/inventory",
+        });
+      }
+    });
+  }, [isLoading, customers, products, createNotification]);
 
   const stats = useMemo(() => {
     const today = new Date().toDateString();

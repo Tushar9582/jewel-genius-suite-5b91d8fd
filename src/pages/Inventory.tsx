@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useUserData } from "@/hooks/useUserData";
+import { useNotifications } from "@/hooks/useNotifications";
 import { ProductBarcodeDialog, generateBarcode } from "@/components/inventory/ProductBarcode";
 
 interface Product {
@@ -41,6 +42,7 @@ const Inventory = () => {
   const [formData, setFormData] = useState(emptyForm);
   const queryClient = useQueryClient();
   const { getAll, addItem, updateItem, deleteItem } = useUserData();
+  const { createNotification } = useNotifications();
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products"],
@@ -49,9 +51,23 @@ const Inventory = () => {
 
   const addProductMutation = useMutation({
     mutationFn: async (newProduct: Omit<Product, "id">) => addItem("products", newProduct),
-    onSuccess: () => {
+    onSuccess: (_id, newProduct) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Product added successfully!");
+      createNotification({
+        title: "New Stock Added",
+        message: `${newProduct.name} has been added to inventory.`,
+        type: "inventory",
+        priority: "low",
+      });
+      if (newProduct.stock <= 5) {
+        createNotification({
+          title: "⚠️ Low Stock Alert",
+          message: `${newProduct.name} has only ${newProduct.stock} units in stock.`,
+          type: "inventory",
+          priority: "high",
+        });
+      }
       setIsDialogOpen(false);
       setFormData(emptyForm);
     },

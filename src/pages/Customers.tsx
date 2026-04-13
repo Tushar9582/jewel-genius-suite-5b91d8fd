@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { useUserData } from "@/hooks/useUserData";
 import { CustomerDetailDialog } from "@/components/customers/CustomerDetailDialog";
 import { BirthdayOfferModal } from "@/components/customers/BirthdayOfferModal";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface Customer {
   id: string;
@@ -55,6 +56,7 @@ function isTodayBirthday(dob: string | null): boolean {
 
 const Customers = () => {
   const { getAll, addItem, deleteItem } = useUserData();
+  const { createNotification } = useNotifications();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", address: "", city: "" });
@@ -75,9 +77,15 @@ const Customers = () => {
     mutationFn: async (newCustomer: Omit<Customer, "id" | "loyalty_points" | "total_purchases">) => {
       return addItem("customers", { ...newCustomer, loyalty_points: 0, total_purchases: 0 });
     },
-    onSuccess: () => {
+    onSuccess: (_id, variables) => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       toast.success("Customer added successfully!");
+      createNotification({
+        title: "New Customer Added",
+        message: `${variables.name} has been added to your customer list.`,
+        type: "customer",
+        priority: "medium",
+      });
       setIsDialogOpen(false);
       setFormData({ name: "", email: "", phone: "", address: "", city: "" });
       setDob(undefined);
