@@ -58,10 +58,7 @@ export function Header() {
         </Button>
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="text-muted-foreground relative h-9 w-9">
-          <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 rounded-full bg-primary animate-pulse" />
-        </Button>
+        <NotificationCenter />
 
         {/* User Profile with Dropdown */}
         <DropdownMenu>
