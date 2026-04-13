@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect, useCallback } from "react";
+import { ref, onValue, push, set, update, remove, query, orderByChild, limitToLast } from "firebase/database";
+import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
 
 export interface Notification {
   id: string;
-  user_id: string;
   title: string;
   message: string;
   type: string;
@@ -18,90 +17,67 @@ export interface Notification {
 
 export function useNotifications() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const bellAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [hasNewNotification, setHasNewNotification] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  const fetchNotifications = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.uid)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (data) setNotifications(data as Notification[]);
-    setLoading(false);
-  }, [user]);
-
-  // Realtime subscription
+  // Realtime listener on Firebase
   useEffect(() => {
-    if (!user) return;
-    fetchNotifications();
+    if (!user) {
+      setNotifications([]);
+      setLoading(false);
+      return;
+    }
 
-    const channel = supabase
-      .channel("notifications-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.uid}`,
-        },
-        (payload) => {
-          const newNotif = payload.new as Notification;
-          setNotifications((prev) => [newNotif, ...prev]);
-          // Play bell sound
-          try {
-            bellAudioRef.current?.play();
-          } catch {}
-          toast({
-            title: newNotif.title,
-            description: newNotif.message,
-          });
-        }
-      )
-      .subscribe();
+    const notifRef = ref(db, `users/${user.uid}/notifications`);
+    const notifQuery = query(notifRef, orderByChild("created_at"), limitToLast(50));
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, fetchNotifications, toast]);
+    const unsubscribe = onValue(notifQuery, (snapshot) => {
+      const items: Notification[] = [];
+      snapshot.forEach((child) => {
+        items.push({ id: child.key!, ...child.val() });
+      });
+      // Reverse for newest-first
+      items.reverse();
+
+      // Check if new notifications arrived
+      if (!loading && items.length > notifications.length) {
+        setHasNewNotification(true);
+        setTimeout(() => setHasNewNotification(false), 2000);
+      }
+
+      setNotifications(items);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markAsRead = useCallback(
     async (id: string) => {
-      await supabase
-        .from("notifications")
-        .update({ is_read: true })
-        .eq("id", id);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
-      );
+      if (!user) return;
+      await update(ref(db, `users/${user.uid}/notifications/${id}`), { is_read: true });
     },
-    []
+    [user]
   );
 
   const markAllAsRead = useCallback(async () => {
     if (!user) return;
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("user_id", user.uid)
-      .eq("is_read", false);
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-  }, [user]);
+    const updates: Record<string, boolean> = {};
+    notifications.filter((n) => !n.is_read).forEach((n) => {
+      updates[`users/${user.uid}/notifications/${n.id}/is_read`] = true;
+    });
+    if (Object.keys(updates).length > 0) {
+      const { update: fbUpdate } = await import("firebase/database");
+      await fbUpdate(ref(db), updates);
+    }
+  }, [user, notifications]);
 
   const clearAll = useCallback(async () => {
     if (!user) return;
-    await supabase
-      .from("notifications")
-      .delete()
-      .eq("user_id", user.uid);
-    setNotifications([]);
+    await remove(ref(db, `users/${user.uid}/notifications`));
   }, [user]);
 
   const createNotification = useCallback(
@@ -114,14 +90,16 @@ export function useNotifications() {
       action_url?: string;
     }) => {
       if (!user) return;
-      await supabase.from("notifications").insert({
-        user_id: user.uid,
+      const notifRef = push(ref(db, `users/${user.uid}/notifications`));
+      await set(notifRef, {
         title: data.title,
         message: data.message,
         type: data.type,
         priority: data.priority || "low",
         icon: data.icon || null,
+        is_read: false,
         action_url: data.action_url || null,
+        created_at: new Date().toISOString(),
       });
     },
     [user]
@@ -131,10 +109,10 @@ export function useNotifications() {
     notifications,
     unreadCount,
     loading,
+    hasNewNotification,
     markAsRead,
     markAllAsRead,
     clearAll,
     createNotification,
-    bellAudioRef,
   };
 }
