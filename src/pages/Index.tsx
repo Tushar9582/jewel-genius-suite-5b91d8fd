@@ -103,6 +103,50 @@ const Index = () => {
   const { data: employees = [], isLoading: eL } = useQuery({ queryKey: ["dash-employees"], queryFn: () => getAll<Employee>("employees"), enabled: !!user });
   const { data: investments = [], isLoading: iL } = useQuery({ queryKey: ["dash-investments"], queryFn: () => getAll<Investment>("investments"), enabled: !!user });
 
+  // Auto-generate birthday & low stock notifications once per session
+  useEffect(() => {
+    if (birthdayCheckedRef.current || isLoading || !customers.length) return;
+    birthdayCheckedRef.current = true;
+    const today = new Date();
+    const mm = today.getMonth();
+    const dd = today.getDate();
+
+    customers.forEach((c: any) => {
+      if (c.date_of_birth) {
+        const dob = new Date(c.date_of_birth);
+        if (dob.getMonth() === mm && dob.getDate() === dd) {
+          createNotification({
+            title: "🎂 Birthday Today!",
+            message: `${c.name}'s birthday is today. Send them an offer!`,
+            type: "birthday",
+            priority: "high",
+            action_url: "/customers",
+          });
+        }
+      }
+    });
+
+    products.forEach((p: any) => {
+      if (Number(p.stock) <= 0) {
+        createNotification({
+          title: "🚫 Out of Stock",
+          message: `${p.name} is out of stock. Reorder immediately.`,
+          type: "inventory",
+          priority: "high",
+          action_url: "/inventory",
+        });
+      } else if (Number(p.stock) <= 5) {
+        createNotification({
+          title: "⚠️ Low Stock Alert",
+          message: `${p.name} has only ${p.stock} units remaining.`,
+          type: "inventory",
+          priority: "high",
+          action_url: "/inventory",
+        });
+      }
+    });
+  }, [isLoading, customers, products, createNotification]);
+
   const isLoading = sL || pL || cL || eL || iL;
 
   const stats = useMemo(() => {
