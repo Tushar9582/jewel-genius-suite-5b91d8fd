@@ -81,6 +81,7 @@ export function NotificationCenter() {
   const {
     notifications,
     unreadCount,
+    hasNewNotification,
     markAsRead,
     markAllAsRead,
     clearAll,
@@ -106,7 +107,7 @@ export function NotificationCenter() {
           size="icon"
           className={cn(
             "text-muted-foreground relative h-9 w-9",
-            unreadCount > 0 && "animate-[bell-shake_0.5s_ease-in-out]"
+            hasNewNotification && "animate-bell-shake"
           )}
         >
           <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
