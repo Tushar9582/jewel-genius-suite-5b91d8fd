@@ -30,7 +30,7 @@ export function useNotifications() {
     const { data } = await supabase
       .from("notifications")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", user.uid)
       .order("created_at", { ascending: false })
       .limit(50);
     if (data) setNotifications(data as Notification[]);
@@ -50,7 +50,7 @@ export function useNotifications() {
           event: "INSERT",
           schema: "public",
           table: "notifications",
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${user.uid}`,
         },
         (payload) => {
           const newNotif = payload.new as Notification;
@@ -90,7 +90,7 @@ export function useNotifications() {
     await supabase
       .from("notifications")
       .update({ is_read: true })
-      .eq("user_id", user.id)
+      .eq("user_id", user.uid)
       .eq("is_read", false);
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   }, [user]);
@@ -100,7 +100,7 @@ export function useNotifications() {
     await supabase
       .from("notifications")
       .delete()
-      .eq("user_id", user.id);
+      .eq("user_id", user.uid);
     setNotifications([]);
   }, [user]);
 
@@ -115,7 +115,7 @@ export function useNotifications() {
     }) => {
       if (!user) return;
       await supabase.from("notifications").insert({
-        user_id: user.id,
+        user_id: user.uid,
         title: data.title,
         message: data.message,
         type: data.type,
