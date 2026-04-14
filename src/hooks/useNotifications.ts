@@ -75,6 +75,14 @@ export function useNotifications() {
     }
   }, [user, notifications]);
 
+  const removeNotification = useCallback(
+    async (id: string) => {
+      if (!user) return;
+      await remove(ref(db, `users/${user.uid}/notifications/${id}`));
+    },
+    [user]
+  );
+
   const clearAll = useCallback(async () => {
     if (!user) return;
     await remove(ref(db, `users/${user.uid}/notifications`));
