@@ -121,6 +121,7 @@ export function useNotifications() {
     markAsRead,
     markAllAsRead,
     clearAll,
+    removeNotification,
     createNotification,
   };
 }
