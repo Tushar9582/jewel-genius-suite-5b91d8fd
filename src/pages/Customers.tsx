@@ -67,11 +67,30 @@ const Customers = () => {
   const [offerCustomer, setOfferCustomer] = useState<Customer | null>(null);
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const queryClient = useQueryClient();
+  const birthdayCheckedRef = useRef(false);
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ["customers"],
     queryFn: () => getAll<Customer>("customers"),
   });
+
+  // Auto-create birthday notifications when customers load
+  useEffect(() => {
+    if (isLoading || birthdayCheckedRef.current || customers.length === 0) return;
+    birthdayCheckedRef.current = true;
+    const today = new Date();
+    customers.forEach((c) => {
+      if (isTodayBirthday(c.date_of_birth)) {
+        createNotification({
+          title: "🎂 Birthday Today!",
+          message: `${c.name}'s birthday is today. Send them a special offer!`,
+          type: "birthday",
+          priority: "high",
+          action_url: "/customers",
+        });
+      }
+    });
+  }, [isLoading, customers, createNotification]);
 
   const addCustomerMutation = useMutation({
     mutationFn: async (newCustomer: Omit<Customer, "id" | "loyalty_points" | "total_purchases">) => {
