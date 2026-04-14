@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Bell, Check, Trash2, Search, Cake, ShoppingCart, Package, Users, TrendingUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,49 +30,134 @@ const priorityStyles: Record<string, string> = {
 function NotificationItem({
   notification,
   onRead,
+  onRemove,
+  onNavigate,
 }: {
   notification: Notification;
   onRead: (id: string) => void;
+  onRemove: (id: string) => void;
+  onNavigate: (url: string) => void;
 }) {
   const config = typeConfig[notification.type] || typeConfig.general;
   const Icon = config.icon;
 
+  const startXRef = useRef(0);
+  const currentXRef = useRef(0);
+  const itemRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    startXRef.current = e.touches[0].clientX;
+    currentXRef.current = 0;
+    isDragging.current = false;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const diff = e.touches[0].clientX - startXRef.current;
+    // Only allow left swipe
+    if (diff < -5) {
+      isDragging.current = true;
+      currentXRef.current = Math.max(diff, -150);
+      if (itemRef.current) {
+        itemRef.current.style.transform = `translateX(${currentXRef.current}px)`;
+        itemRef.current.style.opacity = `${1 - Math.abs(currentXRef.current) / 200}`;
+      }
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (currentXRef.current < -80) {
+      // Swipe far enough → remove
+      if (itemRef.current) {
+        itemRef.current.style.transition = "transform 0.3s, opacity 0.3s";
+        itemRef.current.style.transform = "translateX(-100%)";
+        itemRef.current.style.opacity = "0";
+      }
+      setTimeout(() => onRemove(notification.id), 300);
+    } else {
+      // Snap back
+      if (itemRef.current) {
+        itemRef.current.style.transition = "transform 0.2s, opacity 0.2s";
+        itemRef.current.style.transform = "translateX(0)";
+        itemRef.current.style.opacity = "1";
+      }
+    }
+    setTimeout(() => {
+      if (itemRef.current) itemRef.current.style.transition = "";
+    }, 300);
+  }, [notification.id, onRemove]);
+
+  const handleClick = () => {
+    if (isDragging.current) return;
+    if (!notification.is_read) onRead(notification.id);
+    if (notification.action_url) onNavigate(notification.action_url);
+  };
+
   return (
-    <div
-      className={cn(
-        "flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 group",
-        notification.is_read
-          ? "opacity-60 hover:opacity-80"
-          : "bg-primary/5 hover:bg-primary/10",
-        priorityStyles[notification.priority] || priorityStyles.low
-      )}
-      onClick={() => !notification.is_read && onRead(notification.id)}
-    >
-      <div
-        className={cn(
-          "w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-          "bg-secondary/80"
-        )}
-      >
-        <Icon className={cn("w-4 h-4", config.color)} />
+    <div className="relative overflow-hidden rounded-lg">
+      {/* Red delete background */}
+      <div className="absolute inset-0 bg-destructive/80 flex items-center justify-end pr-4 rounded-lg">
+        <Trash2 className="w-5 h-5 text-destructive-foreground" />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium leading-tight truncate">
-            {notification.title}
-          </p>
-          {!notification.is_read && (
-            <span className="w-2 h-2 rounded-full bg-primary shrink-0 animate-pulse" />
+      <div
+        ref={itemRef}
+        className={cn(
+          "relative flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors duration-200 group bg-background",
+          notification.is_read
+            ? "opacity-60 hover:opacity-80"
+            : "bg-primary/5 hover:bg-primary/10",
+          priorityStyles[notification.priority] || priorityStyles.low
+        )}
+        onClick={handleClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div
+          className={cn(
+            "w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+            "bg-secondary/80"
           )}
+        >
+          <Icon className={cn("w-4 h-4", config.color)} />
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-          {notification.message}
-        </p>
-        <p className="text-[10px] text-muted-foreground/60 mt-1">
-          {formatDistanceToNow(new Date(notification.created_at), {
-            addSuffix: true,
-          })}
-        </p>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium leading-tight truncate">
+              {notification.title}
+            </p>
+            {!notification.is_read && (
+              <span className="w-2 h-2 rounded-full bg-primary shrink-0 animate-pulse" />
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+            {notification.message}
+          </p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[10px] text-muted-foreground/60">
+              {formatDistanceToNow(new Date(notification.created_at), {
+                addSuffix: true,
+              })}
+            </p>
+            {notification.action_url && (
+              <span className="text-[10px] text-primary/70 group-hover:text-primary">
+                Tap to view →
+              </span>
+            )}
+          </div>
+        </div>
+        {/* Desktop delete button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(notification.id);
+          }}
+        >
+          <X className="w-3.5 h-3.5" />
+        </Button>
       </div>
     </div>
   );
@@ -85,7 +171,9 @@ export function NotificationCenter() {
     markAsRead,
     markAllAsRead,
     clearAll,
+    removeNotification,
   } = useNotifications();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -98,6 +186,11 @@ export function NotificationCenter() {
     const matchesTab = activeTab === "all" || n.type === activeTab;
     return matchesSearch && matchesTab;
   });
+
+  const handleNavigate = (url: string) => {
+    setOpen(false);
+    navigate(url);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -209,6 +302,8 @@ export function NotificationCenter() {
                       key={n.id}
                       notification={n}
                       onRead={markAsRead}
+                      onRemove={removeNotification}
+                      onNavigate={handleNavigate}
                     />
                   ))
                 )}
