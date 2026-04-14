@@ -157,7 +157,8 @@ const Inventory = () => {
       (metalFilter === "Gold" && p.metal_type?.toLowerCase().includes("gold")) ||
       (metalFilter === "Silver" && p.metal_type?.toLowerCase().includes("silver")) ||
       (metalFilter === "Diamond" && p.metal_type?.toLowerCase().includes("diamond")) ||
-      (metalFilter === "Platinum" && p.metal_type?.toLowerCase().includes("platinum"));
+      (metalFilter === "Platinum" && p.metal_type?.toLowerCase().includes("platinum")) ||
+      (metalFilter === "Imitation" && p.metal_type?.toLowerCase().includes("imitation"));
     return matchesSearch && matchesMetal;
   });
 
