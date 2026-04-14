@@ -220,6 +220,7 @@ const Inventory = () => {
                   <SelectItem value="Silver">Silver</SelectItem>
                   <SelectItem value="Diamond">Diamond</SelectItem>
                   <SelectItem value="Platinum">Platinum</SelectItem>
+                  <SelectItem value="Imitation">Imitation</SelectItem>
                 </SelectContent>
               </Select>
               <Button variant="outline" size="icon" className="shrink-0 h-9 w-9 sm:h-10 sm:w-10"><Download className="w-4 h-4" /></Button>

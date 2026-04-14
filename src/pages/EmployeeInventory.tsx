@@ -126,6 +126,7 @@ const EmployeeInventory = () => {
                     <SelectItem value="Silver">Silver</SelectItem>
                     <SelectItem value="Diamond">Diamond</SelectItem>
                     <SelectItem value="Platinum">Platinum</SelectItem>
+                    <SelectItem value="Imitation">Imitation</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
