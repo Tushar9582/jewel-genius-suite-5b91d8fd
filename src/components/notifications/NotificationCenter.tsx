@@ -95,9 +95,9 @@ function NotificationItem({
 
   return (
     <div className="relative overflow-hidden rounded-lg">
-      {/* Red delete background */}
-      <div className="absolute inset-0 bg-destructive/80 flex items-center justify-end pr-4 rounded-lg">
-        <Trash2 className="w-5 h-5 text-destructive-foreground" />
+      {/* Swipe background */}
+      <div className="absolute inset-0 bg-muted/60 flex items-center justify-end pr-4 rounded-lg">
+        <Trash2 className="w-4 h-4 text-muted-foreground" />
       </div>
       <div
         ref={itemRef}
